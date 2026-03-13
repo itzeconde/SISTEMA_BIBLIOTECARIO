@@ -231,7 +231,7 @@ export default function Home() {
 
         <div className="hero-stats">
           {[
-            { num: `${libros.length > 0 ? '12,400+' : '—'}`, label: "Títulos" },
+            { num: `${libros.length > 0 ? '500 +' : '—'}`, label: "Títulos" },
             { num: `${categorias.length > 0 ? categorias.length : '—'}`, label: "Categorías" },
             { num: "14 días", label: "Préstamo" },
           ].map((s) => (

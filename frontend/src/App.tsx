@@ -16,15 +16,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas públicas */}
+        {/* Rutas públicas sin navbar */}
         <Route path="/"         element={<Home />} />
         <Route path="/home"     element={<Home />} />
         <Route path="/login"    element={<Login />} />
         <Route path="/registro" element={<Registro />} />
-         <Route path="/libros"   element={<Libros />} /> 
 
-        {/* Rutas protegidas */}
+        {/* Rutas con navbar */}
         <Route element={<Layout />}>
+          <Route path="/libros"    element={<Libros />} />
           <Route path="/prestamos" element={<RutaProtegida><Prestamos /></RutaProtegida>} />
           <Route path="/apartados" element={<RutaProtegida><Apartados /></RutaProtegida>} />
         </Route>

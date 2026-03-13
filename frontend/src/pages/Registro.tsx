@@ -59,6 +59,12 @@ export default function Registro() {
           alt="Biblioteca"
         />
         <div className="registro-panel-overlay" />
+
+        {/* Botón volver flotante sobre la imagen */}
+        <button className="registro-volver-btn" onClick={() => navigate("/")}>
+          ← Volver al inicio
+        </button>
+
         <div className="registro-panel-texto">
           <div className="registro-logo-wrap">
             <div className="registro-logo-icon">B</div>

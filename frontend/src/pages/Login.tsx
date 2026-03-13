@@ -54,6 +54,12 @@ export default function Login() {
           alt="Biblioteca"
         />
         <div className="login-panel-overlay" />
+
+        {/* Botón volver flotante sobre la imagen */}
+        <button className="login-volver-btn" onClick={() => navigate("/")}>
+          ← Volver al inicio
+        </button>
+
         <div className="login-panel-texto">
           <div className="login-logo-wrap">
             <div className="login-logo-icon">B</div>

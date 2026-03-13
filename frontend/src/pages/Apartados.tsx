@@ -1,18 +1,7 @@
 // src/pages/Apartados.tsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getApartados, cancelarApartado, type Apartado } from '../services/api';
-import Navbar from '../components/layout/Navbar';
 import './Apartados.css';
-
-interface Usuario {
-  usuario_id: number;
-  usuario_nombre: string;
-  matricula_id: string;
-  esta_bloqueado: boolean;
-  dias_bloqueo_restantes: number;
-  usuario_bloqueado_hasta: string | null;
-}
 
 interface ModalData {
   apartado_id: number;
@@ -24,18 +13,10 @@ interface ModalData {
 }
 
 export default function Apartados() {
-  const navigate = useNavigate();
-  const [usuario,   setUsuario]   = useState<Usuario | null>(null);
   const [apartados, setApartados] = useState<Apartado[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState<ModalData | null>(null);
   const [msg,       setMsg]       = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("usuario");
-    if (stored) setUsuario(JSON.parse(stored));
-    else navigate("/login");
-  }, []);
 
   const cargar = async () => {
     setLoading(true);
@@ -49,12 +30,6 @@ export default function Apartados() {
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
     setMsg({ tipo, texto });
     setTimeout(() => setMsg(null), 4000);
-  };
-
-  const handleCerrarSesion = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("usuario");
-    navigate("/");
   };
 
   const handleCancelar = async (id: number) => {
@@ -80,8 +55,6 @@ export default function Apartados() {
 
   return (
     <div className="apart-page">
-
-      <Navbar usuario={usuario} onCerrarSesion={handleCerrarSesion} />
 
       {/* Hero */}
       <div className="apart-hero">
