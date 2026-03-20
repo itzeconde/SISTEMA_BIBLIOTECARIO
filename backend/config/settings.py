@@ -13,6 +13,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     os.environ.get("RAILWAY_PUBLIC_DOMAIN", ""),
+    ".railway.app",    # ← acepta cualquier subdominio de railway
+    ".netlify.app",    # ← acepta cualquier subdominio de netlify
 ]
 ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
 
