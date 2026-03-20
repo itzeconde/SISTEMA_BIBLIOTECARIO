@@ -3,11 +3,15 @@ from .views import (
     # Auth
     RegistroView, LoginView,
 
+    # Recuperación de contraseña
+    RecuperarPasswordView, ResetPasswordView,
+
     # Público
     LibrosView, CategoriasView,
 
     # Usuario
     PrestamosView,
+    PrestamoDetalleView,
     ApartadosView, ApartadoDetalleView,
     MultasView,
 
@@ -19,6 +23,7 @@ from .views import (
 
     # Admin — Préstamos
     AdminPrestamosView, AdminPrestamoDetalleView,
+    AdminMarcarEntregadoView,
 
     # Admin — Apartados
     AdminApartadosView, AdminApartadoDetalleView,
@@ -36,18 +41,23 @@ from .views import (
 urlpatterns = [
 
     # ── Auth ──────────────────────────────────────────
-    path('registro/', RegistroView.as_view()),
-    path('login/',    LoginView.as_view()),
+    path('registro/',            RegistroView.as_view()),
+    path('login/',               LoginView.as_view()),
+
+    # ── Recuperación de contraseña ────────────────────
+    path('recuperar-password/',  RecuperarPasswordView.as_view()),
+    path('reset-password/',      ResetPasswordView.as_view()),
 
     # ── Público ───────────────────────────────────────
     path('libros/',     LibrosView.as_view()),
     path('categorias/', CategoriasView.as_view()),
 
     # ── Usuario ───────────────────────────────────────
-    path('prestamos/',                   PrestamosView.as_view()),
-    path('apartados/',                   ApartadosView.as_view()),
-    path('apartados/<int:apartado_id>/', ApartadoDetalleView.as_view()),
-    path('multas/',                      MultasView.as_view()),
+    path('prestamos/',                            PrestamosView.as_view()),
+    path('prestamos/<int:prestamo_id>/cancelar/', PrestamoDetalleView.as_view()),
+    path('apartados/',                            ApartadosView.as_view()),
+    path('apartados/<int:apartado_id>/',          ApartadoDetalleView.as_view()),
+    path('multas/',                               MultasView.as_view()),
 
     # ── Admin — Dashboard ─────────────────────────────
     path('admin/dashboard/', AdminDashboardView.as_view()),
@@ -57,8 +67,9 @@ urlpatterns = [
     path('admin/usuarios/<int:usuario_id>/', AdminUsuarioDetalleView.as_view()),
 
     # ── Admin — Préstamos ─────────────────────────────
-    path('admin/prestamos/',                   AdminPrestamosView.as_view()),
-    path('admin/prestamos/<int:prestamo_id>/', AdminPrestamoDetalleView.as_view()),
+    path('admin/prestamos/',                            AdminPrestamosView.as_view()),
+    path('admin/prestamos/<int:prestamo_id>/',          AdminPrestamoDetalleView.as_view()),
+    path('admin/prestamos/<int:prestamo_id>/entregar/', AdminMarcarEntregadoView.as_view()),
 
     # ── Admin — Apartados ─────────────────────────────
     path('admin/apartados/',                   AdminApartadosView.as_view()),
@@ -69,10 +80,10 @@ urlpatterns = [
     path('admin/libros/<int:libro_id>/', AdminLibroDetalleView.as_view()),
 
     # ── Admin — Categorías ────────────────────────────
-    path('admin/categorias/',                      AdminCategoriasView.as_view()),
-    path('admin/categorias/<int:categoria_id>/',   AdminCategoriaDetalleView.as_view()),
+    path('admin/categorias/',                    AdminCategoriasView.as_view()),
+    path('admin/categorias/<int:categoria_id>/', AdminCategoriaDetalleView.as_view()),
 
     # ── Admin — Editoriales ───────────────────────────
-    path('admin/editoriales/',                     AdminEditorialesView.as_view()),
-    path('admin/editoriales/<int:editorial_id>/',  AdminEditorialDetalleView.as_view()),
+    path('admin/editoriales/',                    AdminEditorialesView.as_view()),
+    path('admin/editoriales/<int:editorial_id>/', AdminEditorialDetalleView.as_view()),
 ]

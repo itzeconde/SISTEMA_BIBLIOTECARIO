@@ -2,12 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.conf import settings
+from django.conf import settings as django_settings
+from django.core.mail import send_mail
+from django.contrib.auth.hashers import make_password
 from datetime import datetime, timedelta, date
 import jwt
 
 from .models import (
     Libro, Categoria, Editorial, Prestamo, Apartado, Multa, Usuario,
     DIAS_ESPERA_APARTADO, DIAS_RECOGIDA, DIAS_PRESTAMO_OPTS,
+    calcular_fecha_limite_habiles, PasswordResetToken,
 )
 from .serializers import (
     RegistroSerializer, LoginSerializer,
@@ -190,7 +194,10 @@ class PrestamosView(APIView):
         if dias is not None:
             return Response({'error': f'Tu cuenta está bloqueada por {dias} día(s) más.'}, status=400)
 
-        if Prestamo.objects.filter(usuario=usuario, prestamo_estatus='Activo').count() >= 3:
+        if Prestamo.objects.filter(
+            usuario=usuario,
+            prestamo_estatus__in=['Activo', 'Pendiente']
+        ).count() >= 3:
             return Response({'error': 'Has alcanzado el límite de 3 préstamos activos.'}, status=400)
 
         libro_id = request.data.get('libro_id')
@@ -199,7 +206,10 @@ class PrestamosView(APIView):
         except Libro.DoesNotExist:
             return Response({'error': 'Libro no encontrado'}, status=404)
 
-        if Prestamo.objects.filter(usuario=usuario, libro=libro, prestamo_estatus='Activo').exists():
+        if Prestamo.objects.filter(
+            usuario=usuario, libro=libro,
+            prestamo_estatus__in=['Activo', 'Pendiente']
+        ).exists():
             return Response({'error': 'Ya tienes este libro en préstamo.'}, status=400)
 
         if libro.libro_ejemplares <= 0:
@@ -214,8 +224,8 @@ class PrestamosView(APIView):
             'usuario':                         usuario.usuario_id,
             'libro':                           libro.libro_id,
             'prestamo_fecha_salida':           hoy,
-            'prestamo_fecha_entrega_esperada': hoy + timedelta(days=dias_plazo),
-            'prestamo_estatus':                'Activo',
+            'prestamo_fecha_entrega_esperada': hoy,
+            'prestamo_estatus':                'Pendiente',
             'prestamo_dias_plazo':             dias_plazo,
         })
         if serializer.is_valid():
@@ -227,6 +237,45 @@ class PrestamosView(APIView):
             ).update(apartado_estatus='Convertido')
             return Response(PrestamoSerializer(prestamo).data, status=201)
         return Response(serializer.errors, status=400)
+
+
+# ─────────────────────────────────────────
+# Cancelar préstamo (usuario)
+# ─────────────────────────────────────────
+
+class PrestamoDetalleView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, prestamo_id):
+        usuario = get_usuario(request)
+        if not usuario:
+            return Response({'error': 'No autorizado'}, status=401)
+
+        try:
+            prestamo = Prestamo.objects.get(prestamo_id=prestamo_id, usuario=usuario)
+        except Prestamo.DoesNotExist:
+            return Response({'error': 'Préstamo no encontrado'}, status=404)
+
+        if prestamo.prestamo_estatus != 'Pendiente':
+            return Response(
+                {'error': 'Solo puedes cancelar un préstamo mientras el libro no haya sido entregado.'},
+                status=400,
+            )
+
+        libro = prestamo.libro
+        libro.libro_ejemplares += 1
+        libro.save()
+
+        prestamo.prestamo_estatus = 'Cancelado'
+        prestamo.prestamo_fecha_devolucion_real = date.today()
+        prestamo.save()
+
+        _asignar_siguiente_apartado(libro)
+
+        return Response({
+            'message': 'Préstamo cancelado correctamente. El libro ha sido liberado.',
+            'prestamo': PrestamoSerializer(prestamo).data,
+        })
 
 
 # ─────────────────────────────────────────
@@ -254,7 +303,6 @@ class ApartadosView(APIView):
         if dias is not None:
             return Response({'error': f'Tu cuenta está bloqueada por {dias} día(s) más.'}, status=400)
 
-        # ── Límite de 3 apartados activos ──
         if Apartado.objects.filter(
             usuario=usuario,
             apartado_estatus__in=['Pendiente', 'Asignado']
@@ -273,7 +321,10 @@ class ApartadosView(APIView):
         ).exists():
             return Response({'error': 'Ya tienes este libro apartado.'}, status=400)
 
-        if Prestamo.objects.filter(usuario=usuario, libro=libro, prestamo_estatus='Activo').exists():
+        if Prestamo.objects.filter(
+            usuario=usuario, libro=libro,
+            prestamo_estatus__in=['Activo', 'Pendiente']
+        ).exists():
             return Response({'error': 'Ya tienes este libro en préstamo.'}, status=400)
 
         hoy = date.today()
@@ -350,12 +401,13 @@ class AdminDashboardView(APIView):
         if not get_admin(request):
             return Response({'error': 'No autorizado'}, status=403)
         return Response({
-            'total_usuarios':     Usuario.objects.filter(usuario_rol='usuario').count(),
-            'total_libros':       Libro.objects.count(),
-            'prestamos_activos':  Prestamo.objects.filter(prestamo_estatus='Activo').count(),
-            'prestamos_vencidos': Prestamo.objects.filter(prestamo_estatus='Vencido').count(),
-            'apartados_activos':  Apartado.objects.filter(apartado_estatus__in=['Pendiente', 'Asignado']).count(),
-            'multas_activas':     Multa.objects.filter(multa_estatus='Activa').count(),
+            'total_usuarios':       Usuario.objects.filter(usuario_rol='usuario').count(),
+            'total_libros':         Libro.objects.count(),
+            'prestamos_pendientes': Prestamo.objects.filter(prestamo_estatus='Pendiente').count(),
+            'prestamos_activos':    Prestamo.objects.filter(prestamo_estatus='Activo').count(),
+            'prestamos_vencidos':   Prestamo.objects.filter(prestamo_estatus='Vencido').count(),
+            'apartados_activos':    Apartado.objects.filter(apartado_estatus__in=['Pendiente', 'Asignado']).count(),
+            'multas_activas':       Multa.objects.filter(multa_estatus='Activa').count(),
         })
 
 
@@ -428,8 +480,8 @@ class AdminPrestamosView(APIView):
     def get(self, request):
         if not get_admin(request):
             return Response({'error': 'No autorizado'}, status=403)
-        estatus  = request.query_params.get('estatus', '')
-        busqueda = request.query_params.get('busqueda', '')
+        estatus   = request.query_params.get('estatus', '')
+        busqueda  = request.query_params.get('busqueda', '')
         prestamos = Prestamo.objects.all().order_by('-prestamo_fecha_salida')
         if estatus:
             prestamos = prestamos.filter(prestamo_estatus=estatus)
@@ -468,9 +520,14 @@ class AdminPrestamosView(APIView):
         dias = usuario_bloqueado(usuario)
         if dias is not None:
             return Response({'error': f'El usuario está bloqueado por {dias} día(s) más.'}, status=400)
-        if Prestamo.objects.filter(usuario=usuario, prestamo_estatus='Activo').count() >= 3:
+        if Prestamo.objects.filter(
+            usuario=usuario, prestamo_estatus__in=['Activo', 'Pendiente']
+        ).count() >= 3:
             return Response({'error': 'El usuario ya tiene 3 préstamos activos.'}, status=400)
-        if Prestamo.objects.filter(usuario=usuario, libro=libro, prestamo_estatus='Activo').exists():
+        if Prestamo.objects.filter(
+            usuario=usuario, libro=libro,
+            prestamo_estatus__in=['Activo', 'Pendiente']
+        ).exists():
             return Response({'error': 'El usuario ya tiene este libro en préstamo.'}, status=400)
         if libro.libro_ejemplares <= 0:
             return Response({'error': 'No hay ejemplares disponibles.'}, status=400)
@@ -480,8 +537,8 @@ class AdminPrestamosView(APIView):
             'usuario':                         usuario.usuario_id,
             'libro':                           libro.libro_id,
             'prestamo_fecha_salida':           hoy,
-            'prestamo_fecha_entrega_esperada': hoy + timedelta(days=dias_plazo),
-            'prestamo_estatus':                'Activo',
+            'prestamo_fecha_entrega_esperada': hoy,
+            'prestamo_estatus':                'Pendiente',
             'prestamo_dias_plazo':             dias_plazo,
         })
         if serializer.is_valid():
@@ -495,6 +552,43 @@ class AdminPrestamosView(APIView):
         return Response(serializer.errors, status=400)
 
 
+# ─────────────────────────────────────────
+# Admin — Marcar libro como ENTREGADO
+# ─────────────────────────────────────────
+
+class AdminMarcarEntregadoView(APIView):
+    permission_classes = [AllowAny]
+
+    def patch(self, request, prestamo_id):
+        if not get_admin(request):
+            return Response({'error': 'No autorizado'}, status=403)
+
+        try:
+            prestamo = Prestamo.objects.get(prestamo_id=prestamo_id)
+        except Prestamo.DoesNotExist:
+            return Response({'error': 'Préstamo no encontrado'}, status=404)
+
+        if prestamo.prestamo_estatus != 'Pendiente':
+            return Response(
+                {'error': 'Solo se pueden entregar préstamos en estado Pendiente.'},
+                status=400,
+            )
+
+        prestamo.marcar_entregado_por_admin()
+
+        return Response({
+            'message':            'Libro marcado como entregado. El conteo de días hábiles ha iniciado.',
+            'fecha_entrega_real': prestamo.prestamo_fecha_entrega_real,
+            'fecha_limite':       prestamo.prestamo_fecha_entrega_esperada,
+            'dias_plazo':         prestamo.prestamo_dias_plazo,
+            'prestamo':           PrestamoSerializer(prestamo).data,
+        })
+
+
+# ─────────────────────────────────────────
+# Admin — Devolución de préstamo
+# ─────────────────────────────────────────
+
 class AdminPrestamoDetalleView(APIView):
     permission_classes = [AllowAny]
 
@@ -505,8 +599,15 @@ class AdminPrestamoDetalleView(APIView):
             prestamo = Prestamo.objects.get(prestamo_id=prestamo_id)
         except Prestamo.DoesNotExist:
             return Response({'error': 'Préstamo no encontrado'}, status=404)
+
         if prestamo.prestamo_estatus == 'Devuelto':
             return Response({'error': 'Este préstamo ya fue devuelto.'}, status=400)
+
+        if prestamo.prestamo_estatus == 'Pendiente':
+            return Response(
+                {'error': 'El libro aún no ha sido entregado al usuario. Primero marca el préstamo como entregado.'},
+                status=400,
+            )
 
         hoy = date.today()
         prestamo.prestamo_fecha_devolucion_real = hoy
@@ -517,7 +618,6 @@ class AdminPrestamoDetalleView(APIView):
         libro.libro_ejemplares += 1
         libro.save()
 
-        # ── Convertir apartado Asignado del usuario que devuelve ──
         Apartado.objects.filter(
             usuario=prestamo.usuario,
             libro=libro,
@@ -569,8 +669,8 @@ class AdminApartadosView(APIView):
     def get(self, request):
         if not get_admin(request):
             return Response({'error': 'No autorizado'}, status=403)
-        estatus  = request.query_params.get('estatus', '')
-        busqueda = request.query_params.get('busqueda', '')
+        estatus   = request.query_params.get('estatus', '')
+        busqueda  = request.query_params.get('busqueda', '')
         apartados = Apartado.objects.all().order_by('-apartado_fecha')
         if estatus:
             apartados = apartados.filter(apartado_estatus=estatus)
@@ -763,3 +863,79 @@ class AdminEditorialDetalleView(APIView):
             return Response({'error': 'Editorial no encontrada'}, status=404)
         editorial.delete()
         return Response({'message': 'Editorial eliminada correctamente'})
+
+
+# ─────────────────────────────────────────
+# Recuperación de contraseña
+# ─────────────────────────────────────────
+
+class RecuperarPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('usuario_email', '').strip().lower()
+        if not email:
+            return Response({'error': 'El correo es requerido.'}, status=400)
+
+        try:
+            usuario = Usuario.objects.get(usuario_email__iexact=email)
+            PasswordResetToken.objects.filter(usuario=usuario, usado=False).update(usado=True)
+            token_obj = PasswordResetToken.objects.create(usuario=usuario)
+
+            frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:5173')
+            reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
+
+            send_mail(
+                subject='Restablecer tu contraseña — Biblioteca',
+                message=(
+                    f"Hola {usuario.usuario_nombre},\n\n"
+                    f"Recibimos una solicitud para restablecer tu contraseña.\n"
+                    f"Haz clic en el siguiente enlace (válido por 1 hora):\n\n"
+                    f"{reset_link}\n\n"
+                    f"Si no solicitaste esto, ignora este correo.\n\n"
+                    f"— Biblioteca"
+                ),
+                from_email=django_settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[usuario.usuario_email],
+                fail_silently=False,
+            )
+        except Usuario.DoesNotExist:
+            pass  # No revelar si el email existe
+
+        return Response({
+            'message': 'Si el correo está registrado, recibirás un enlace en breve.'
+        })
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token_str      = request.data.get('token', '').strip()
+        nueva_password = request.data.get('nueva_password', '').strip()
+
+        if not token_str or not nueva_password:
+            return Response({'error': 'Token y nueva contraseña son requeridos.'}, status=400)
+
+        if len(nueva_password) < 6:
+            return Response({'error': 'La contraseña debe tener al menos 6 caracteres.'}, status=400)
+
+        try:
+            token_obj = PasswordResetToken.objects.get(token=token_str)
+        except (PasswordResetToken.DoesNotExist, ValueError):
+            return Response({'error': 'Token inválido.'}, status=400)
+
+        if not token_obj.esta_vigente():
+            return Response(
+                {'error': 'El enlace ha expirado o ya fue usado. Solicita uno nuevo.'},
+                status=400,
+            )
+
+        usuario = token_obj.usuario
+        usuario.usuario_password = make_password(nueva_password)
+        usuario.save()
+
+        token_obj.usado = True
+        token_obj.save()
+
+        return Response({'message': 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.'})

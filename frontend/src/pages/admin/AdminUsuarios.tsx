@@ -5,50 +5,63 @@ import './AdminUsuarios.css';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 interface Usuario {
-  usuario_id:             number;
-  usuario_nombre:         string;
-  usuario_aPaterno:       string;
-  usuario_aMaterno:       string;
-  matricula_id:           string;
-  usuario_rol:            string;
+  usuario_id:              number;
+  usuario_nombre:          string;
+  usuario_aPaterno:        string;
+  usuario_aMaterno:        string;
+  matricula_id:            string;
+  usuario_email:           string;
+  usuario_rol:             string;
   usuario_bloqueado_hasta: string | null;
-  esta_bloqueado:         boolean;
-  dias_bloqueo_restantes: number;
+  esta_bloqueado:          boolean;
+  dias_bloqueo_restantes:  number;
 }
 
-interface FormUsuario {
+interface FormCrear {
   usuario_nombre:   string;
   usuario_aPaterno: string;
   usuario_aMaterno: string;
   matricula_id:     string;
+  usuario_email:    string;
   usuario_password: string;
   usuario_rol:      string;
 }
 
-const FORM_VACIO: FormUsuario = {
-  usuario_nombre:   '',
-  usuario_aPaterno: '',
-  usuario_aMaterno: '',
-  matricula_id:     '',
-  usuario_password: '',
-  usuario_rol:      'usuario',
+// Sin usuario_rol ni usuario_password — no se editan
+interface FormEditar {
+  usuario_nombre:   string;
+  usuario_aPaterno: string;
+  usuario_aMaterno: string;
+  matricula_id:     string;
+  usuario_email:    string;
+}
+
+const FORM_CREAR_VACIO: FormCrear = {
+  usuario_nombre: '', usuario_aPaterno: '', usuario_aMaterno: '',
+  matricula_id: '', usuario_email: '', usuario_password: '', usuario_rol: 'usuario',
 };
 
-type Modal = 
+const FORM_EDITAR_VACIO: FormEditar = {
+  usuario_nombre: '', usuario_aPaterno: '', usuario_aMaterno: '',
+  matricula_id: '', usuario_email: '',
+};
+
+type Modal =
   | { tipo: 'crear' }
   | { tipo: 'editar'; usuario: Usuario }
   | { tipo: 'eliminar'; usuario: Usuario };
 
 export default function AdminUsuarios() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [busqueda, setBusqueda] = useState('');
-  const [modal,    setModal]    = useState<Modal | null>(null);
-  const [form,     setForm]     = useState<FormUsuario>(FORM_VACIO);
-  const [msg,      setMsg]      = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
-  const [guardando, setGuardando] = useState(false);
+  const [usuarios,   setUsuarios]   = useState<Usuario[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [busqueda,   setBusqueda]   = useState('');
+  const [modal,      setModal]      = useState<Modal | null>(null);
+  const [formCrear,  setFormCrear]  = useState<FormCrear>(FORM_CREAR_VACIO);
+  const [formEditar, setFormEditar] = useState<FormEditar>(FORM_EDITAR_VACIO);
+  const [msg,        setMsg]        = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
+  const [guardando,  setGuardando]  = useState(false);
 
-  const token = localStorage.getItem('token');
+  const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   const cargar = async () => {
@@ -68,18 +81,17 @@ export default function AdminUsuarios() {
   };
 
   const abrirCrear = () => {
-    setForm(FORM_VACIO);
+    setFormCrear(FORM_CREAR_VACIO);
     setModal({ tipo: 'crear' });
   };
 
   const abrirEditar = (u: Usuario) => {
-    setForm({
+    setFormEditar({
       usuario_nombre:   u.usuario_nombre,
       usuario_aPaterno: u.usuario_aPaterno,
       usuario_aMaterno: u.usuario_aMaterno,
       matricula_id:     u.matricula_id,
-      usuario_password: '',
-      usuario_rol:      u.usuario_rol,
+      usuario_email:    u.usuario_email,
     });
     setModal({ tipo: 'editar', usuario: u });
   };
@@ -88,17 +100,14 @@ export default function AdminUsuarios() {
     setGuardando(true);
     try {
       if (modal?.tipo === 'crear') {
-        const body: any = { ...form };
         const r = await fetch(`${API}/admin/usuarios/`, {
-          method: 'POST', headers, body: JSON.stringify(body),
+          method: 'POST', headers, body: JSON.stringify(formCrear),
         });
         if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
         mostrar('ok', 'Usuario creado correctamente');
       } else if (modal?.tipo === 'editar') {
-        const body: any = { ...form };
-        if (!body.usuario_password) delete body.usuario_password;
         const r = await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, {
-          method: 'PUT', headers, body: JSON.stringify(body),
+          method: 'PUT', headers, body: JSON.stringify(formEditar),
         });
         if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
         mostrar('ok', 'Usuario actualizado correctamente');
@@ -113,18 +122,15 @@ export default function AdminUsuarios() {
     if (modal?.tipo !== 'eliminar') return;
     setGuardando(true);
     try {
-      await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, {
-        method: 'DELETE', headers,
-      });
+      await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, { method: 'DELETE', headers });
       mostrar('ok', 'Usuario eliminado correctamente');
-      setModal(null);
-      cargar();
+      setModal(null); cargar();
     } catch { mostrar('err', 'Error al eliminar usuario'); }
     finally { setGuardando(false); }
   };
 
   const filtrados = usuarios.filter(u =>
-    `${u.usuario_nombre} ${u.usuario_aPaterno} ${u.matricula_id}`
+    `${u.usuario_nombre} ${u.usuario_aPaterno} ${u.matricula_id} ${u.usuario_email}`
       .toLowerCase().includes(busqueda.toLowerCase())
   );
 
@@ -138,31 +144,25 @@ export default function AdminUsuarios() {
           <h1 className="ausu-title">Usuarios</h1>
           <p className="ausu-sub">{usuarios.length} usuario(s) registrado(s)</p>
         </div>
-        <button className="ausu-btn-nuevo" onClick={abrirCrear}>
-          + Nuevo usuario
-        </button>
+        <button className="ausu-btn-nuevo" onClick={abrirCrear}>+ Nuevo usuario</button>
       </div>
 
       {msg && <div className={`ausu-notif ${msg.tipo}`}>{msg.texto}</div>}
 
-      {/* Buscador */}
       <div className="ausu-filtros">
         <input
           className="ausu-search"
-          placeholder="Buscar por nombre o matrícula…"
+          placeholder="Buscar por nombre, matrícula o correo…"
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
         />
         <span className="ausu-count">{filtrados.length} resultado(s)</span>
       </div>
 
-      {/* Tabla */}
       {loading ? (
         <div className="ausu-loading"><div className="ausu-spinner" /><p>Cargando…</p></div>
       ) : filtrados.length === 0 ? (
-        <div className="ausu-empty">
-          <p>No se encontraron usuarios.</p>
-        </div>
+        <div className="ausu-empty"><p>No se encontraron usuarios.</p></div>
       ) : (
         <div className="ausu-tabla-wrap">
           <table className="ausu-tabla">
@@ -170,6 +170,7 @@ export default function AdminUsuarios() {
               <tr>
                 <th>Nombre</th>
                 <th>Matrícula</th>
+                <th>Correo</th>
                 <th>Rol</th>
                 <th>Estatus</th>
                 <th>Bloqueado hasta</th>
@@ -182,13 +183,14 @@ export default function AdminUsuarios() {
                   <td className="td-nombre">
                     <div className="ausu-avatar">{u.usuario_nombre[0]}</div>
                     <div>
-                      <div className="td-bold">{u.usuario_nombre} {u.usuario_aPaterno} {u.usuario_aMaterno}</div>
+                      <div className="td-bold">
+                        {u.usuario_nombre} {u.usuario_aPaterno} {u.usuario_aMaterno}
+                      </div>
                     </div>
                   </td>
                   <td className="td-muted">{u.matricula_id}</td>
-                  <td>
-                    <span className={`ausu-pill rol-${u.usuario_rol}`}>{u.usuario_rol}</span>
-                  </td>
+                  <td className="td-muted">{u.usuario_email}</td>
+                  <td><span className={`ausu-pill rol-${u.usuario_rol}`}>{u.usuario_rol}</span></td>
                   <td>
                     {u.esta_bloqueado
                       ? <span className="ausu-pill bloqueado">🔒 Bloqueado</span>
@@ -201,7 +203,7 @@ export default function AdminUsuarios() {
                   <td>
                     <div className="ausu-acciones">
                       <button className="ausu-btn-edit" onClick={() => abrirEditar(u)}>Editar</button>
-                      <button className="ausu-btn-del"  onClick={() => setModal({ tipo: 'eliminar', usuario: u })}>Eliminar</button>
+                      <button className="ausu-btn-del" onClick={() => setModal({ tipo: 'eliminar', usuario: u })}>Eliminar</button>
                     </div>
                   </td>
                 </tr>
@@ -211,48 +213,61 @@ export default function AdminUsuarios() {
         </div>
       )}
 
-      {/* Modal Crear / Editar */}
-      {(modal?.tipo === 'crear' || modal?.tipo === 'editar') && (
+      {/* ── Modal Crear — con rol ── */}
+      {modal?.tipo === 'crear' && (
         <div className="ausu-backdrop" onClick={() => setModal(null)}>
           <div className="ausu-modal" onClick={e => e.stopPropagation()}>
             <button className="ausu-modal-x" onClick={() => setModal(null)}>✕</button>
-            <h2 className="ausu-modal-title">
-              {modal.tipo === 'crear' ? 'Nuevo usuario' : 'Editar usuario'}
-            </h2>
-
+            <h2 className="ausu-modal-title">Nuevo usuario</h2>
             <div className="ausu-form-grid">
               <div className="ausu-form-group">
                 <label>Nombre(s)</label>
-                <input value={form.usuario_nombre} onChange={e => setForm({...form, usuario_nombre: e.target.value})} placeholder="Nombre" />
+                <input value={formCrear.usuario_nombre}
+                  onChange={e => setFormCrear({...formCrear, usuario_nombre: e.target.value})}
+                  placeholder="Nombre" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Paterno</label>
-                <input value={form.usuario_aPaterno} onChange={e => setForm({...form, usuario_aPaterno: e.target.value})} placeholder="Apellido Paterno" />
+                <input value={formCrear.usuario_aPaterno}
+                  onChange={e => setFormCrear({...formCrear, usuario_aPaterno: e.target.value})}
+                  placeholder="Apellido Paterno" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Materno</label>
-                <input value={form.usuario_aMaterno} onChange={e => setForm({...form, usuario_aMaterno: e.target.value})} placeholder="Apellido Materno" />
+                <input value={formCrear.usuario_aMaterno}
+                  onChange={e => setFormCrear({...formCrear, usuario_aMaterno: e.target.value})}
+                  placeholder="Apellido Materno" />
               </div>
               <div className="ausu-form-group">
                 <label>Matrícula</label>
-                <input value={form.matricula_id} onChange={e => setForm({...form, matricula_id: e.target.value})} placeholder="Matrícula" />
+                <input value={formCrear.matricula_id}
+                  onChange={e => setFormCrear({...formCrear, matricula_id: e.target.value})}
+                  placeholder="Matrícula" />
+              </div>
+              <div className="ausu-form-group ausu-span2">
+                <label>Correo electrónico</label>
+                <input type="email" value={formCrear.usuario_email}
+                  onChange={e => setFormCrear({...formCrear, usuario_email: e.target.value})}
+                  placeholder="correo@ejemplo.com" />
               </div>
               <div className="ausu-form-group">
-                <label>{modal.tipo === 'editar' ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
-                <input type="password" value={form.usuario_password} onChange={e => setForm({...form, usuario_password: e.target.value})} placeholder="••••••••" />
+                <label>Contraseña inicial</label>
+                <input type="password" value={formCrear.usuario_password}
+                  onChange={e => setFormCrear({...formCrear, usuario_password: e.target.value})}
+                  placeholder="••••••••" />
               </div>
               <div className="ausu-form-group">
                 <label>Rol</label>
-                <select value={form.usuario_rol} onChange={e => setForm({...form, usuario_rol: e.target.value})}>
+                <select value={formCrear.usuario_rol}
+                  onChange={e => setFormCrear({...formCrear, usuario_rol: e.target.value})}>
                   <option value="usuario">Usuario</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
             </div>
-
             <div className="ausu-modal-btns">
               <button className="ausu-btn-guardar" onClick={handleGuardar} disabled={guardando}>
-                {guardando ? 'Guardando…' : modal.tipo === 'crear' ? 'Crear usuario' : 'Guardar cambios'}
+                {guardando ? 'Guardando…' : 'Crear usuario'}
               </button>
               <button className="ausu-btn-cancelar" onClick={() => setModal(null)}>Cancelar</button>
             </div>
@@ -260,7 +275,58 @@ export default function AdminUsuarios() {
         </div>
       )}
 
-      {/* Modal Eliminar */}
+      {/* ── Modal Editar — SIN contraseña NI rol ── */}
+      {modal?.tipo === 'editar' && (
+        <div className="ausu-backdrop" onClick={() => setModal(null)}>
+          <div className="ausu-modal" onClick={e => e.stopPropagation()}>
+            <button className="ausu-modal-x" onClick={() => setModal(null)}>✕</button>
+            <h2 className="ausu-modal-title">Editar usuario</h2>
+            <p className="ausu-modal-nota">
+              🔒 La contraseña y el rol no pueden modificarse desde aquí.
+            </p>
+            <div className="ausu-form-grid">
+              <div className="ausu-form-group">
+                <label>Nombre(s)</label>
+                <input value={formEditar.usuario_nombre}
+                  onChange={e => setFormEditar({...formEditar, usuario_nombre: e.target.value})}
+                  placeholder="Nombre" />
+              </div>
+              <div className="ausu-form-group">
+                <label>Apellido Paterno</label>
+                <input value={formEditar.usuario_aPaterno}
+                  onChange={e => setFormEditar({...formEditar, usuario_aPaterno: e.target.value})}
+                  placeholder="Apellido Paterno" />
+              </div>
+              <div className="ausu-form-group">
+                <label>Apellido Materno</label>
+                <input value={formEditar.usuario_aMaterno}
+                  onChange={e => setFormEditar({...formEditar, usuario_aMaterno: e.target.value})}
+                  placeholder="Apellido Materno" />
+              </div>
+              <div className="ausu-form-group">
+                <label>Matrícula</label>
+                <input value={formEditar.matricula_id}
+                  onChange={e => setFormEditar({...formEditar, matricula_id: e.target.value})}
+                  placeholder="Matrícula" />
+              </div>
+              <div className="ausu-form-group ausu-span2">
+                <label>Correo electrónico</label>
+                <input type="email" value={formEditar.usuario_email}
+                  onChange={e => setFormEditar({...formEditar, usuario_email: e.target.value})}
+                  placeholder="correo@ejemplo.com" />
+              </div>
+            </div>
+            <div className="ausu-modal-btns">
+              <button className="ausu-btn-guardar" onClick={handleGuardar} disabled={guardando}>
+                {guardando ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+              <button className="ausu-btn-cancelar" onClick={() => setModal(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Eliminar ── */}
       {modal?.tipo === 'eliminar' && (
         <div className="ausu-backdrop" onClick={() => setModal(null)}>
           <div className="ausu-modal ausu-modal-sm" onClick={e => e.stopPropagation()}>
@@ -268,7 +334,7 @@ export default function AdminUsuarios() {
             <div className="ausu-del-ico">🗑️</div>
             <h2 className="ausu-modal-title">¿Eliminar usuario?</h2>
             <p className="ausu-del-txt">
-              Se eliminará a <strong>{modal.usuario.usuario_nombre} {modal.usuario.usuario_aPaterno}</strong> permanentemente. Esta acción no se puede deshacer.
+              Se eliminará a <strong>{modal.usuario.usuario_nombre} {modal.usuario.usuario_aPaterno}</strong> permanentemente.
             </p>
             <div className="ausu-modal-btns">
               <button className="ausu-btn-del-confirm" onClick={handleEliminar} disabled={guardando}>

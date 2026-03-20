@@ -18,6 +18,8 @@ interface Prestamo {
   prestamo_fecha_devolucion_real: string | null;
   prestamo_estatus:               string;
   dias_retraso:                   number;
+  prestamo_entregado_admin:       boolean;
+  prestamo_fecha_entrega_real:    string | null;
 }
 
 interface Libro {
@@ -28,6 +30,7 @@ interface Libro {
 
 type Modal =
   | { tipo: 'registrar' }
+  | { tipo: 'entregar'; prestamo: Prestamo }
   | { tipo: 'devolver'; prestamo: Prestamo };
 
 export default function AdminPrestamos() {
@@ -76,7 +79,6 @@ export default function AdminPrestamos() {
     setTimeout(() => setMsg(null), 5000);
   };
 
-  // Filtrado de libros en el buscador del modal
   const librosFiltrados = useMemo(() =>
     busquedaLibro.trim().length < 2
       ? []
@@ -112,6 +114,23 @@ export default function AdminPrestamos() {
     finally { setProcesando(false); }
   };
 
+  // Marcar libro como entregado físicamente al usuario
+  const handleEntregar = async () => {
+    if (modal?.tipo !== 'entregar') return;
+    setProcesando(true);
+    try {
+      const r = await fetch(`${API}/admin/prestamos/${modal.prestamo.prestamo_id}/entregar/`, {
+        method: 'PATCH', headers,
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Error al marcar como entregado');
+      mostrar('ok', 'Libro entregado. El conteo de días hábiles ha iniciado.');
+      setModal(null);
+      cargar();
+    } catch (e: any) { mostrar('err', e.message); }
+    finally { setProcesando(false); }
+  };
+
   const handleDevolver = async () => {
     if (modal?.tipo !== 'devolver') return;
     setProcesando(true);
@@ -131,10 +150,11 @@ export default function AdminPrestamos() {
   const fc = (f: string) =>
     new Date(f + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const estatusColor = (e: string) =>
-    e === 'Activo' ? 'activo' : e === 'Devuelto' ? 'devuelto' : 'vencido';
+  const estatusClass = (e: string) =>
+    e === 'Activo'    ? 'activo'    :
+    e === 'Devuelto'  ? 'devuelto'  :
+    e === 'Pendiente' ? 'pendiente' : 'vencido';
 
-  // Paginación
   const totalPaginas = Math.ceil(prestamos.length / POR_PAGINA);
   const paginados    = prestamos.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
@@ -160,7 +180,6 @@ export default function AdminPrestamos() {
 
       {msg && <div className={`aprest-notif ${msg.tipo}`}>{msg.texto}</div>}
 
-      {/* Filtros */}
       <div className="aprest-filtros">
         <input
           className="aprest-search"
@@ -171,6 +190,7 @@ export default function AdminPrestamos() {
         />
         <select className="aprest-select" value={estatus} onChange={e => setEstatus(e.target.value)}>
           <option value="">Todos</option>
+          <option value="Pendiente">Pendientes</option>
           <option value="Activo">Activos</option>
           <option value="Vencido">Vencidos</option>
           <option value="Devuelto">Devueltos</option>
@@ -178,7 +198,6 @@ export default function AdminPrestamos() {
         <button className="aprest-btn-buscar" onClick={cargar}>Buscar</button>
       </div>
 
-      {/* Tabla */}
       {loading ? (
         <div className="aprest-loading"><div className="aprest-spinner" /><p>Cargando…</p></div>
       ) : prestamos.length === 0 ? (
@@ -215,7 +234,7 @@ export default function AdminPrestamos() {
                     {p.prestamo_fecha_devolucion_real ? fc(p.prestamo_fecha_devolucion_real) : '—'}
                   </td>
                   <td>
-                    <span className={`aprest-pill ${estatusColor(p.prestamo_estatus)}`}>
+                    <span className={`aprest-pill ${estatusClass(p.prestamo_estatus)}`}>
                       {p.prestamo_estatus}
                     </span>
                   </td>
@@ -226,48 +245,45 @@ export default function AdminPrestamos() {
                     }
                   </td>
                   <td>
-                    {p.prestamo_estatus !== 'Devuelto' && (
-                      <button
-                        className="aprest-btn-devolver"
-                        onClick={() => setModal({ tipo: 'devolver', prestamo: p })}
-                      >
-                        Devolver
-                      </button>
-                    )}
+                    <div className="aprest-acciones">
+                      {/* Pendiente → botón Entregar */}
+                      {p.prestamo_estatus === 'Pendiente' && (
+                        <button
+                          className="aprest-btn-entregar"
+                          onClick={() => setModal({ tipo: 'entregar', prestamo: p })}
+                        >
+                          Entregar
+                        </button>
+                      )}
+                      {/* Activo o Vencido → botón Devolver */}
+                      {(p.prestamo_estatus === 'Activo' || p.prestamo_estatus === 'Vencido') && (
+                        <button
+                          className="aprest-btn-devolver"
+                          onClick={() => setModal({ tipo: 'devolver', prestamo: p })}
+                        >
+                          Devolver
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {/* Paginador */}
           {totalPaginas > 1 && (
             <div className="aprest-pagination">
-              <button
-                className="aprest-pg-btn"
-                onClick={() => setPagina(p => Math.max(1, p - 1))}
-                disabled={pagina === 1}
-              >
+              <button className="aprest-pg-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}>
                 ‹ Anterior
               </button>
               <div className="aprest-pg-nums">
                 {numeros.map((n, i) =>
                   n === '...'
                     ? <span key={`e${i}`} className="aprest-pg-ellipsis">…</span>
-                    : <button
-                        key={n}
-                        className={`aprest-pg-num ${pagina === n ? 'active' : ''}`}
-                        onClick={() => setPagina(n as number)}
-                      >
-                        {n}
-                      </button>
+                    : <button key={n} className={`aprest-pg-num ${pagina === n ? 'active' : ''}`} onClick={() => setPagina(n as number)}>{n}</button>
                 )}
               </div>
-              <button
-                className="aprest-pg-btn"
-                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                disabled={pagina === totalPaginas}
-              >
+              <button className="aprest-pg-btn" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}>
                 Siguiente ›
               </button>
             </div>
@@ -275,49 +291,33 @@ export default function AdminPrestamos() {
         </div>
       )}
 
-      {/* Modal Registrar */}
+      {/* ── Modal Registrar ── */}
       {modal?.tipo === 'registrar' && (
         <div className="aprest-backdrop" onClick={() => setModal(null)}>
           <div className="aprest-modal" onClick={e => e.stopPropagation()}>
             <button className="aprest-modal-x" onClick={() => setModal(null)}>✕</button>
             <h2 className="aprest-modal-title">Registrar préstamo</h2>
             <p className="aprest-modal-sub">Ingresa la matrícula del usuario y busca el libro.</p>
-
             <div className="aprest-form">
               <div className="aprest-form-group">
                 <label>Matrícula del usuario</label>
-                <input
-                  value={matricula}
-                  onChange={e => setMatricula(e.target.value)}
-                  placeholder="Ej. 2024UTT019"
-                />
+                <input value={matricula} onChange={e => setMatricula(e.target.value)} placeholder="Ej. 2024UTT019" />
               </div>
-
               <div className="aprest-form-group">
                 <label>Libro</label>
                 <div className="aprest-libro-search-wrap">
                   <input
                     value={busquedaLibro}
-                    onChange={e => {
-                      setBusquedaLibro(e.target.value);
-                      setLibroSelecto(null);
-                      setMostrarDrop(true);
-                    }}
+                    onChange={e => { setBusquedaLibro(e.target.value); setLibroSelecto(null); setMostrarDrop(true); }}
                     onFocus={() => setMostrarDrop(true)}
                     placeholder="Escribe el título o autor…"
                     autoComplete="off"
                   />
-                  {libroSelecto && (
-                    <span className="aprest-libro-check">✓</span>
-                  )}
+                  {libroSelecto && <span className="aprest-libro-check">✓</span>}
                   {mostrarDrop && librosFiltrados.length > 0 && (
                     <div className="aprest-libro-dropdown">
                       {librosFiltrados.map(l => (
-                        <button
-                          key={l.libro_id}
-                          className="aprest-libro-option"
-                          onClick={() => seleccionarLibro(l)}
-                        >
+                        <button key={l.libro_id} className="aprest-libro-option" onClick={() => seleccionarLibro(l)}>
                           <span className="aplo-titulo">{l.libro_titulo}</span>
                           <span className="aplo-autor">{l.libro_autor}</span>
                         </button>
@@ -331,13 +331,10 @@ export default function AdminPrestamos() {
                   )}
                 </div>
                 {libroSelecto && (
-                  <p className="aprest-libro-selecto">
-                    📖 <strong>{libroSelecto.libro_titulo}</strong> — {libroSelecto.libro_autor}
-                  </p>
+                  <p className="aprest-libro-selecto">📖 <strong>{libroSelecto.libro_titulo}</strong> — {libroSelecto.libro_autor}</p>
                 )}
               </div>
             </div>
-
             <div className="aprest-modal-btns">
               <button className="aprest-btn-confirmar" onClick={handleRegistrar} disabled={procesando}>
                 {procesando ? 'Registrando…' : 'Confirmar préstamo'}
@@ -348,14 +345,47 @@ export default function AdminPrestamos() {
         </div>
       )}
 
-      {/* Modal Devolver */}
+      {/* ── Modal Entregar ── */}
+      {modal?.tipo === 'entregar' && (
+        <div className="aprest-backdrop" onClick={() => setModal(null)}>
+          <div className="aprest-modal aprest-modal-sm" onClick={e => e.stopPropagation()}>
+            <button className="aprest-modal-x" onClick={() => setModal(null)}>✕</button>
+            <div className="aprest-dev-ico">📦</div>
+            <h2 className="aprest-modal-title">Entregar libro</h2>
+            <div className="aprest-dev-info">
+              <div className="aprest-dev-row">
+                <span>Libro</span>
+                <strong>{modal.prestamo.libro_titulo}</strong>
+              </div>
+              <div className="aprest-dev-row">
+                <span>Usuario</span>
+                <strong>{modal.prestamo.usuario_nombre}</strong>
+              </div>
+              <div className="aprest-dev-row">
+                <span>Matrícula</span>
+                <strong>{modal.prestamo.matricula_id}</strong>
+              </div>
+            </div>
+            <p className="aprest-entregar-nota">
+              Al confirmar, el conteo de días hábiles iniciará desde hoy.
+            </p>
+            <div className="aprest-modal-btns">
+              <button className="aprest-btn-confirmar" onClick={handleEntregar} disabled={procesando}>
+                {procesando ? 'Procesando…' : 'Confirmar entrega'}
+              </button>
+              <button className="aprest-btn-cancelar" onClick={() => setModal(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Devolver ── */}
       {modal?.tipo === 'devolver' && (
         <div className="aprest-backdrop" onClick={() => setModal(null)}>
           <div className="aprest-modal aprest-modal-sm" onClick={e => e.stopPropagation()}>
             <button className="aprest-modal-x" onClick={() => setModal(null)}>✕</button>
             <div className="aprest-dev-ico">📚</div>
             <h2 className="aprest-modal-title">Registrar devolución</h2>
-
             <div className="aprest-dev-info">
               <div className="aprest-dev-row">
                 <span>Libro</span>
@@ -376,7 +406,6 @@ export default function AdminPrestamos() {
                 </div>
               )}
             </div>
-
             <div className="aprest-modal-btns">
               <button className="aprest-btn-confirmar" onClick={handleDevolver} disabled={procesando}>
                 {procesando ? 'Procesando…' : 'Confirmar devolución'}

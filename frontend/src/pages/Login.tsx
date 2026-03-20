@@ -3,17 +3,14 @@ import { useNavigate } from "react-router-dom";
 import "./Login.css";
 
 interface FormLogin {
-  matricula_id: string;
+  matricula_id:     string;
   usuario_password: string;
 }
 
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState<FormLogin>({
-    matricula_id: "",
-    usuario_password: "",
-  });
-  const [error, setError] = useState("");
+  const [form,     setForm]     = useState<FormLogin>({ matricula_id: "", usuario_password: "" });
+  const [error,    setError]    = useState("");
   const [cargando, setCargando] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26,22 +23,19 @@ export default function Login() {
     setCargando(true);
     setError("");
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/login/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/login/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        }
+      );
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem("token", data.token);
+        localStorage.setItem("token",   data.token);
         localStorage.setItem("usuario", JSON.stringify(data.usuario));
-
-        // Redirigir según rol
-        if (data.usuario.usuario_rol === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/home");
-        }
+        navigate(data.usuario.usuario_rol === "admin" ? "/admin" : "/home");
       } else {
         setError("Matrícula o contraseña incorrectos.");
       }
@@ -60,11 +54,9 @@ export default function Login() {
           alt="Biblioteca"
         />
         <div className="login-panel-overlay" />
-
         <button className="login-volver-btn" onClick={() => navigate("/")}>
           ← Volver al inicio
         </button>
-
         <div className="login-panel-texto">
           <div className="login-logo-wrap">
             <div className="login-logo-icon">B</div>
@@ -103,7 +95,15 @@ export default function Login() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Contraseña</label>
+              <div className="login-label-row">
+                <label className="form-label">Contraseña</label>
+                <span
+                  className="login-forgot-link"
+                  onClick={() => navigate("/recuperar-password")}
+                >
+                  ¿Olvidaste tu contraseña?
+                </span>
+              </div>
               <input
                 className="form-input"
                 type="password"
@@ -130,10 +130,6 @@ export default function Login() {
             <span className="login-link" onClick={() => navigate("/registro")}>
               Regístrate aquí
             </span>
-          </p>
-
-          <p className="login-nota">
-            Si olvidaste tu contraseña, acércate a la ventanilla de atención.
           </p>
         </div>
       </div>

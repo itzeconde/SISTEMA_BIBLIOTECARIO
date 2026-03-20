@@ -3,6 +3,8 @@ import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
+import RecuperarPassword from './pages/RecuperarPassword';
+import ResetPassword from './pages/ResetPassword';
 import Libros from './pages/Libros';
 import Prestamos from './pages/Prestamos';
 import Apartados from './pages/Apartados';
@@ -31,8 +33,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/home" />} />
-        <Route path="/login"    element={<Login />} />
-        <Route path="/registro" element={<Registro />} />
+        <Route path="/login"               element={<Login />} />
+        <Route path="/registro"            element={<Registro />} />
+        <Route path="/recuperar-password"  element={<RecuperarPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
 
         <Route element={<Layout />}>
           <Route path="/home"      element={<Home />} />

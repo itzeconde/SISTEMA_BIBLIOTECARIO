@@ -15,7 +15,7 @@ interface Apartado {
   libro_autor:               string;
   apartado_fecha:            string;
   apartado_fecha_expiracion: string;
-  apartado_estatus:          'Pendiente' | 'Asignado' | 'Cancelado' | 'Convertido';
+  apartado_estatus:          'Pendiente' | 'Asignado' | 'Cancelado' | 'Prestamo';
   dias_restantes:            number;
 }
 

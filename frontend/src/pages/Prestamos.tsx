@@ -1,86 +1,128 @@
 // src/pages/Prestamos.tsx
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getPrestamos, getMultas, type Prestamo, type Multa } from '../services/api';
-import './Prestamos.css';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import './Prestamos.css'
 
-type Tab = 'activos' | 'historial' | 'multas';
-
-interface ModalData {
-  prestamo: Prestamo;
-}
-
+const API        = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 const POR_PAGINA = 10
 
+type Tab = 'activos' | 'historial' | 'multas'
+
+interface Multa {
+  multa_id:           number
+  prestamo_id:        number
+  libro_titulo:       string
+  multa_dias_bloqueo: number
+  multa_motivo:       string
+  multa_fecha_inicio: string
+  multa_fecha_fin:    string
+  multa_estatus:      'Activa' | 'Cumplida'
+}
+
+interface Prestamo {
+  prestamo_id:                     number
+  libro_id:                        number
+  libro_titulo:                    string
+  libro_autor:                     string
+  prestamo_fecha_salida:           string
+  prestamo_fecha_entrega_esperada: string
+  prestamo_fecha_devolucion_real:  string | null
+  prestamo_estatus:                'Pendiente' | 'Activo' | 'Devuelto' | 'Vencido' | 'Cancelado'
+  prestamo_dias_plazo:             number
+  dias_retraso:                    number
+  prestamo_entregado_admin:        boolean
+  prestamo_fecha_entrega_real:     string | null
+}
+
 export default function Prestamos() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
-  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
-  const [multas,    setMultas]    = useState<Multa[]>([]);
-  const [tab,       setTab]       = useState<Tab>('activos');
-  const [loading,   setLoading]   = useState(true);
-  const [modal,     setModal]     = useState<ModalData | null>(null);
-  const [msg,       setMsg]       = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
-  const [pagina,    setPagina]    = useState(1);
+  const [prestamos,   setPrestamos]   = useState<Prestamo[]>([])
+  const [multas,      setMultas]      = useState<Multa[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [tab,         setTab]         = useState<Tab>('activos')
+  const [pagina,      setPagina]      = useState(1)
+  const [msg,         setMsg]         = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null)
+  const [modalCancel, setModalCancel] = useState<Prestamo | null>(null)
+  const [cancelando,  setCancelando]  = useState(false)
 
-  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
+  const token   = localStorage.getItem('token')
+  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null')
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
   const cargar = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const [p, m] = await Promise.all([getPrestamos(), getMultas()]);
-      setPrestamos(p);
-      setMultas(m);
+      const [rPrest, rMultas] = await Promise.all([
+        fetch(`${API}/prestamos/`, { headers }),
+        fetch(`${API}/multas/`,    { headers }),
+      ])
+      if (!rPrest.ok || !rMultas.ok) throw new Error()
+      setPrestamos(await rPrest.json())
+      setMultas(await rMultas.json())
     } catch {
-      mostrar('err', 'Error al cargar préstamos');
+      mostrar('err', 'Error al cargar préstamos')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  useEffect(() => { cargar(); }, []);
-  useEffect(() => { setPagina(1); }, [tab]);
+  useEffect(() => { cargar() }, [])
 
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
-    setMsg({ tipo, texto });
-    setTimeout(() => setMsg(null), 4000);
-  };
+    setMsg({ tipo, texto })
+    setTimeout(() => setMsg(null), 4500)
+  }
 
   const fc = (f: string) =>
-    new Date(f + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    new Date(f + 'T00:00:00').toLocaleDateString('es-MX', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    })
 
-  const fl = (f: string) =>
-    new Date(f + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const activos = prestamos.filter(p => ['Pendiente', 'Activo', 'Vencido'].includes(p.prestamo_estatus))
+  const pasados = prestamos.filter(p => ['Devuelto', 'Cancelado'].includes(p.prestamo_estatus))
+  const multasActivas = multas.filter(m => m.multa_estatus === 'Activa').length
 
-  const diasRestantes = (p: Prestamo): number => {
-    if (p.prestamo_estatus !== 'Activo') return 0;
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-    const exp = new Date(p.prestamo_fecha_entrega_esperada + 'T00:00:00');
-    return Math.max(Math.ceil((exp.getTime() - hoy.getTime()) / 86400000), 0);
-  };
+  const totalPaginas  = Math.ceil(pasados.length / POR_PAGINA)
+  const pasadosPagina = pasados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
 
-  const colorBox  = (d: number) => d === 0 ? 'rojo' : d <= 2 ? 'amarillo' : 'verde';
-  const colorPill = (p: Prestamo) =>
-    p.prestamo_estatus === 'Vencido' ? 'vencido' :
-    p.prestamo_estatus === 'Devuelto' ? 'devuelto' : 'activo';
+  const diasRestantes = (p: Prestamo) => {
+    if (!p.prestamo_entregado_admin) return null
+    const hoy   = new Date(); hoy.setHours(0, 0, 0, 0)
+    const limit = new Date(p.prestamo_fecha_entrega_esperada + 'T00:00:00')
+    return Math.ceil((limit.getTime() - hoy.getTime()) / 86_400_000)
+  }
 
-  const activos   = prestamos.filter(p => p.prestamo_estatus === 'Activo');
-  const historial = prestamos.filter(p => p.prestamo_estatus !== 'Activo');
-  const multasAct = multas.filter(m => m.multa_estatus === 'Activa');
+  const urgClass = (dias: number | null) => {
+    if (dias === null) return 'gris'
+    return dias <= 0 ? 'roja' : dias === 1 ? 'amarilla' : 'verde'
+  }
 
-  const totalPaginas    = Math.ceil(historial.length / POR_PAGINA);
-  const historialPagina = historial.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const cambiarTab = (t: Tab) => { setTab(t); setPagina(1) }
 
-  const irPagina = (p: number) => {
-    setPagina(p);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // ── Cancelar préstamo ─────────────────────────────────────────────────────
+  const handleCancelar = async () => {
+    if (!modalCancel) return
+    setCancelando(true)
+    try {
+      const r    = await fetch(`${API}/prestamos/${modalCancel.prestamo_id}/cancelar/`, {
+        method: 'PATCH', headers,
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'Error al cancelar')
+      mostrar('ok', '✓ Préstamo cancelado. El libro fue liberado.')
+      setModalCancel(null)
+      cargar()
+    } catch (e: any) {
+      mostrar('err', e.message)
+    } finally {
+      setCancelando(false)
+    }
+  }
 
   const Paginador = () => (
-    <div className="libros-paginador">
-      <button className="pag-btn" onClick={() => irPagina(pagina - 1)} disabled={pagina === 1}>
-        ← Anterior
-      </button>
+    <div className="prest-paginador">
+      <button className="pag-btn" onClick={() => setPagina(p => p - 1)} disabled={pagina === 1}>← Anterior</button>
       <div className="pag-nums">
         {Array.from({ length: totalPaginas }, (_, i) => i + 1)
           .filter(p => p === 1 || p === totalPaginas || Math.abs(p - pagina) <= 1)
@@ -89,27 +131,18 @@ export default function Prestamos() {
             acc.push(p)
             return acc
           }, [])
-          .map((p, idx) =>
+          .map((p, i) =>
             p === '...'
-              ? <span key={`ellipsis-${idx}`} className="pag-ellipsis">…</span>
-              : <button
-                  key={p}
-                  className={`pag-num ${pagina === p ? 'activo' : ''}`}
-                  onClick={() => irPagina(p as number)}
-                >
-                  {p}
-                </button>
+              ? <span key={`e${i}`} className="pag-ellipsis">…</span>
+              : <button key={p} className={`pag-num ${pagina === p ? 'activo' : ''}`} onClick={() => setPagina(p as number)}>{p}</button>
           )
         }
       </div>
-      <button className="pag-btn" onClick={() => irPagina(pagina + 1)} disabled={pagina === totalPaginas}>
-        Siguiente →
-      </button>
+      <button className="pag-btn" onClick={() => setPagina(p => p + 1)} disabled={pagina === totalPaginas}>Siguiente →</button>
     </div>
-  );
+  )
 
   return (
-    // ← flex column + min-height para que el footer siempre quede abajo
     <div className="prest-page" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
       {/* ── Hero ── */}
@@ -118,7 +151,8 @@ export default function Prestamos() {
           <div className="prest-breadcrumb">Biblioteca WEB / Mis Préstamos</div>
           <h1 className="prest-h1">Mis Préstamos</h1>
           <p className="prest-subtitle">
-            Puedes tener hasta <strong>3 préstamos activos</strong> a la vez. Elige entre <strong>3, 5 o 7 días</strong> de plazo al solicitar.
+            Puedes tener hasta <strong>3 préstamos activos</strong> a la vez.
+            Elige entre 3, 5 o 7 días de plazo al solicitar.
           </p>
         </div>
         <div className="prest-hero-stats">
@@ -128,35 +162,18 @@ export default function Prestamos() {
           </div>
           <div className="prest-stat-sep" />
           <div className="prest-stat">
-            <span className={`psn${multasAct.length > 0 ? ' red' : ''}`}>{multasAct.length}</span>
+            <span className="psn" style={multasActivas > 0 ? { color: '#ef4444' } : {}}>
+              {multasActivas}
+            </span>
             <span className="psl">Multas</span>
           </div>
           <div className="prest-stat-sep" />
           <div className="prest-stat">
-            <span className="psn">{historial.length}</span>
+            <span className="psn">{pasados.length}</span>
             <span className="psl">Historial</span>
           </div>
         </div>
       </div>
-
-      {/* ── Alerta bloqueo ── */}
-      {multasAct.length > 0 && (
-        <div className="prest-alerta">
-          <div className="prest-alerta-ico">!</div>
-          <span>
-            Tienes <strong>{multasAct.length} multa(s) activa(s)</strong>. Tu cuenta puede estar bloqueada temporalmente.
-          </span>
-          <span className="prest-alerta-link" onClick={() => setTab('multas')}>Ver multas →</span>
-        </div>
-      )}
-
-      {/* ── Límite de préstamos ── */}
-      {activos.length >= 3 && (
-        <div className="prest-alerta" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }}>
-          <div className="prest-alerta-ico" style={{ background: '#3b82f6' }}>i</div>
-          <span>Has alcanzado el <strong>límite de 3 préstamos activos</strong>. Devuelve uno para solicitar otro.</span>
-        </div>
-      )}
 
       {msg && (
         <div className={`prest-notif ${msg.tipo}`}>
@@ -166,126 +183,170 @@ export default function Prestamos() {
 
       {/* ── Tabs ── */}
       <div className="prest-tabs-wrap">
-        <div className="prest-tabs">
-          <button className={`prest-tab${tab === 'activos' ? ' active' : ''}`} onClick={() => setTab('activos')}>
-            Activos
-            {activos.length > 0 && <span className="prest-tab-badge">{activos.length}</span>}
-          </button>
-          <button className={`prest-tab${tab === 'historial' ? ' active' : ''}`} onClick={() => setTab('historial')}>
-            Historial
-            {historial.length > 0 && <span className="prest-tab-badge">{historial.length}</span>}
-          </button>
-          <button className={`prest-tab${tab === 'multas' ? ' active' : ''}`} onClick={() => setTab('multas')}>
-            Multas
-            {multasAct.length > 0 && <span className="prest-tab-badge danger">{multasAct.length}</span>}
-          </button>
-        </div>
+        <button className={`prest-tab ${tab === 'activos'   ? 'activo' : ''}`} onClick={() => cambiarTab('activos')}>
+          Activos
+        </button>
+        <button className={`prest-tab ${tab === 'historial' ? 'activo' : ''}`} onClick={() => cambiarTab('historial')}>
+          Historial
+        </button>
+        <button className={`prest-tab ${tab === 'multas'    ? 'activo' : ''}`} onClick={() => cambiarTab('multas')}>
+          Multas
+          {multasActivas > 0 && <span className="prest-tab-badge">{multasActivas}</span>}
+        </button>
       </div>
 
-      {/* ← flex: 1 para empujar el footer hacia abajo */}
+      {/* ── Contenido ── */}
       <div style={{ flex: 1 }}>
         {loading ? (
-          <div className="prest-loading">
-            <div className="prest-spinner" />
-            <p>Cargando…</p>
-          </div>
+          <div className="prest-loading"><div className="prest-spinner" /><p>Cargando…</p></div>
         ) : (
-          <div className="prest-content">
-
-            {/* ── Tab: Activos ── */}
+          <>
+            {/* ════ TAB ACTIVOS ════ */}
             {tab === 'activos' && (
-              <>
+              <section className="prest-section">
                 {activos.length === 0 ? (
                   <div className="prest-empty">
                     <div className="prest-empty-ico">📚</div>
                     <h3>Sin préstamos activos</h3>
                     <p>Desde el catálogo puedes solicitar un préstamo de cualquier libro disponible.</p>
+                    <button className="prest-btn-catalogo" onClick={() => navigate('/libros')}>
+                      Ir al catálogo →
+                    </button>
                   </div>
                 ) : (
-                  <div className="prest-lista">
+                  <div className="prest-grid">
                     {activos.map(p => {
-                      const dias = diasRestantes(p);
+                      const dias = diasRestantes(p)
+                      const urg  = urgClass(dias)
                       return (
-                        <button
-                          key={p.prestamo_id}
-                          className={`prest-card${p.prestamo_estatus === 'Vencido' ? ' vencido' : dias <= 2 ? ' urgente' : ''}`}
-                          onClick={() => setModal({ prestamo: p })}
-                        >
-                          <div className="prest-card-left">
-                            <div className="prest-card-top-row">
-                              <h3>{p.libro_titulo}</h3>
-                              {p.prestamo_estatus === 'Vencido' && (
-                                <span className="prest-tag vencido">Vencido</span>
-                              )}
-                              {p.prestamo_estatus === 'Activo' && dias <= 2 && (
-                                <span className="prest-tag urgente">
-                                  {dias === 0 ? 'Vence hoy' : `${dias} día${dias > 1 ? 's' : ''}`}
+                        <div key={p.prestamo_id} className={`prest-card urg-${urg}`}>
+
+                          {/* ── Banner estado entrega ── */}
+                          {p.prestamo_estatus === 'Pendiente' ? (
+                            <div className="prest-entrega-banner pendiente-entrega">
+                              <span className="prest-entrega-ico">⏳</span>
+                              <div>
+                                <p className="prest-entrega-titulo">Pendiente de entrega</p>
+                                <p className="prest-entrega-sub">
+                                  Tu libro está siendo preparado. Pasa a la biblioteca a recogerlo.
+                                </p>
+                              </div>
+                            </div>
+                          ) : p.prestamo_entregado_admin && p.prestamo_fecha_entrega_real ? (
+                            <div className="prest-entrega-banner entregado">
+                              <span className="prest-entrega-ico">✅</span>
+                              <div>
+                                <p className="prest-entrega-titulo">Libro entregado</p>
+                                <p className="prest-entrega-sub">
+                                  Recibiste el libro el <strong>{fc(p.prestamo_fecha_entrega_real)}</strong>.
+                                  El plazo corre desde ese día.
+                                </p>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* ── Pill urgencia ── */}
+                          <div className="prest-card-top">
+                            {p.prestamo_entregado_admin && dias !== null ? (
+                              <span className={`prest-urg-pill urg-${urg}`}>
+                                {p.prestamo_estatus === 'Vencido'
+                                  ? `🔴 ${Math.abs(dias)}d de retraso`
+                                  : dias === 0 ? '🔴 Vence hoy'
+                                  : dias === 1 ? '🟡 Vence mañana'
+                                  : `🟢 ${dias} días restantes`}
+                              </span>
+                            ) : (
+                              <span className="prest-urg-pill urg-gris">🕐 En espera de entrega</span>
+                            )}
+                          </div>
+
+                          <h3 className="prest-card-titulo">{p.libro_titulo}</h3>
+                          <p className="prest-card-autor">{p.libro_autor}</p>
+
+                          <div className="prest-card-fechas">
+                            <div>
+                              <span className="pfl">Solicitado</span>
+                              <span className="pfv">{fc(p.prestamo_fecha_salida)}</span>
+                            </div>
+                            {p.prestamo_entregado_admin && p.prestamo_fecha_entrega_real && (
+                              <div>
+                                <span className="pfl">Recibido</span>
+                                <span className="pfv green">{fc(p.prestamo_fecha_entrega_real)}</span>
+                              </div>
+                            )}
+                            {p.prestamo_entregado_admin && (
+                              <div>
+                                <span className="pfl">Fecha límite</span>
+                                <span className={`pfv ${p.prestamo_estatus === 'Vencido' ? 'red' : ''}`}>
+                                  {fc(p.prestamo_fecha_entrega_esperada)}
                                 </span>
-                              )}
-                            </div>
-                            <p className="prest-autor">{p.libro_autor}</p>
-                            <div className="prest-fechas">
-                              <span>Salida: {fc(p.prestamo_fecha_salida)}</span>
-                              <span className="prest-sep">·</span>
-                              <span>Entrega: {fc(p.prestamo_fecha_entrega_esperada)}</span>
-                              {p.prestamo_dias_plazo && (
-                                <>
-                                  <span className="prest-sep">·</span>
-                                  <span>Plazo: {p.prestamo_dias_plazo} días</span>
-                                </>
-                              )}
+                              </div>
+                            )}
+                            <div>
+                              <span className="pfl">Plazo</span>
+                              <span className="pfv">{p.prestamo_dias_plazo} días hábiles</span>
                             </div>
                           </div>
-                          <div className="prest-card-right">
-                            <span className={`prest-pill ${colorPill(p)}`}>{p.prestamo_estatus}</span>
-                            <span className="prest-card-ver">Ver detalles →</span>
-                          </div>
-                        </button>
-                      );
+
+                          {/* ── Botón cancelar — SOLO si Pendiente ── */}
+                          {p.prestamo_estatus === 'Pendiente' && (
+                            <div className="prest-card-footer">
+                              <button
+                                className="prest-btn-cancelar"
+                                onClick={() => setModalCancel(p)}
+                              >
+                                Cancelar préstamo
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
                     })}
                   </div>
                 )}
-              </>
+              </section>
             )}
 
-            {/* ── Tab: Historial ── */}
+            {/* ════ TAB HISTORIAL ════ */}
             {tab === 'historial' && (
-              <>
-                {historial.length === 0 ? (
+              <section className="prest-section">
+                {pasados.length === 0 ? (
                   <div className="prest-empty">
                     <div className="prest-empty-ico">📋</div>
-                    <h3>Sin historial</h3>
-                    <p>Aquí aparecerán tus préstamos devueltos o vencidos.</p>
+                    <h3>Sin historial todavía</h3>
+                    <p>Aquí aparecerán tus préstamos devueltos.</p>
                   </div>
                 ) : (
                   <>
-                    <p className="prest-pag-info">
-                      Mostrando {(pagina - 1) * POR_PAGINA + 1}–{Math.min(pagina * POR_PAGINA, historial.length)} de {historial.length} préstamos
-                    </p>
                     <div className="prest-tabla-wrap">
                       <table className="prest-tabla">
                         <thead>
                           <tr>
                             <th>Libro</th>
-                            <th>Autor</th>
-                            <th>Salida</th>
-                            <th>Entrega esperada</th>
-                            <th>Devolución real</th>
-                            <th>Plazo</th>
+                            <th>Recibido</th>
+                            <th>Fecha límite</th>
+                            <th>Devuelto</th>
                             <th>Estatus</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {historialPagina.map(p => (
+                          {pasadosPagina.map(p => (
                             <tr key={p.prestamo_id}>
-                              <td className="td-bold">{p.libro_titulo}</td>
-                              <td className="td-muted">{p.libro_autor}</td>
-                              <td>{fc(p.prestamo_fecha_salida)}</td>
-                              <td>{fc(p.prestamo_fecha_entrega_esperada)}</td>
-                              <td>{p.prestamo_fecha_devolucion_real ? fc(p.prestamo_fecha_devolucion_real) : '—'}</td>
-                              <td>{p.prestamo_dias_plazo ? `${p.prestamo_dias_plazo} días` : '—'}</td>
                               <td>
-                                <span className={`prest-pill ${colorPill(p)}`}>{p.prestamo_estatus}</span>
+                                <div className="td-bold">{p.libro_titulo}</div>
+                                <div className="td-muted">{p.libro_autor}</div>
+                              </td>
+                              <td className="td-muted">
+                                {p.prestamo_fecha_entrega_real ? fc(p.prestamo_fecha_entrega_real) : '—'}
+                              </td>
+                              <td className="td-muted">{fc(p.prestamo_fecha_entrega_esperada)}</td>
+                              <td className="td-muted">
+                                {p.prestamo_fecha_devolucion_real ? fc(p.prestamo_fecha_devolucion_real) : '—'}
+                              </td>
+                              <td>
+                                <span className={`prest-pill ${p.prestamo_estatus.toLowerCase()}`}>
+                                  {p.prestamo_estatus}
+                                </span>
                               </td>
                             </tr>
                           ))}
@@ -295,123 +356,57 @@ export default function Prestamos() {
                     {totalPaginas > 1 && <Paginador />}
                   </>
                 )}
-              </>
+              </section>
             )}
 
-            {/* ── Tab: Multas ── */}
+            {/* ════ TAB MULTAS ════ */}
             {tab === 'multas' && (
-              <>
+              <section className="prest-section">
                 {multas.length === 0 ? (
                   <div className="prest-empty">
                     <div className="prest-empty-ico">✅</div>
                     <h3>Sin multas</h3>
-                    <p>¡Excelente! No tienes multas registradas.</p>
+                    <p>No tienes ninguna multa registrada.</p>
                   </div>
                 ) : (
-                  <div className="prest-lista">
-                    {multas.map(m => (
-                      <div
-                        key={m.multa_id}
-                        className={`prest-multa-card ${m.multa_estatus === 'Activa' ? 'pendiente' : 'pagada'}`}
-                      >
-                        <div className="prest-multa-left">
-                          <h3>{m.libro_titulo}</h3>
-                          <p className="prest-autor" style={{ margin: '2px 0 6px' }}>{m.multa_motivo}</p>
-                          <p className="prest-multa-fechas">
-                            {fc(m.multa_fecha_inicio)} — {fc(m.multa_fecha_fin)}
-                          </p>
-                        </div>
-                        <div className="prest-multa-right">
-                          <span className={`prest-pill ${m.multa_estatus === 'Activa' ? 'pendiente' : 'pagada'}`}>
-                            {m.multa_estatus}
-                          </span>
-                          <span className="prest-multa-bloqueo">
-                            {m.multa_dias_bloqueo} día{m.multa_dias_bloqueo !== 1 ? 's' : ''} de bloqueo
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="prest-tabla-wrap">
+                    <table className="prest-tabla">
+                      <thead>
+                        <tr>
+                          <th>Libro</th>
+                          <th>Motivo</th>
+                          <th>Inicio bloqueo</th>
+                          <th>Fin bloqueo</th>
+                          <th>Días</th>
+                          <th>Estatus</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multas.map(m => (
+                          <tr key={m.multa_id}>
+                            <td className="td-bold">{m.libro_titulo}</td>
+                            <td className="td-muted">{m.multa_motivo}</td>
+                            <td className="td-muted">{fc(m.multa_fecha_inicio)}</td>
+                            <td className="td-muted">{fc(m.multa_fecha_fin)}</td>
+                            <td className="td-muted">{m.multa_dias_bloqueo}d</td>
+                            <td>
+                              <span className={`prest-pill ${m.multa_estatus === 'Activa' ? 'vencido' : 'devuelto'}`}>
+                                {m.multa_estatus}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-              </>
+              </section>
             )}
-
-          </div>
+          </>
         )}
       </div>
 
-      {/* ── Modal detalle préstamo activo ── */}
-      {modal && (
-        <div className="prest-backdrop" onClick={() => setModal(null)}>
-          <div className="prest-modal" onClick={e => e.stopPropagation()}>
-            <button className="prest-modal-x" onClick={() => setModal(null)}>✕</button>
-
-            <p className="prest-modal-pre">Préstamo activo</p>
-            <h2 className="prest-modal-titulo">{modal.prestamo.libro_titulo}</h2>
-            <p className="prest-modal-autor">{modal.prestamo.libro_autor}</p>
-
-            {(() => {
-              const dias  = diasRestantes(modal.prestamo);
-              const color = colorBox(dias);
-              return (
-                <>
-                  <div className={`prest-dias-box ${color}`}>
-                    <span className="prest-dias-num">
-                      {modal.prestamo.prestamo_estatus === 'Vencido' ? modal.prestamo.dias_retraso : dias}
-                    </span>
-                    <span className="prest-dias-label">
-                      {modal.prestamo.prestamo_estatus === 'Vencido'
-                        ? `día${modal.prestamo.dias_retraso !== 1 ? 's' : ''} de retraso`
-                        : dias === 1 ? 'día restante' : 'días restantes'}
-                    </span>
-                  </div>
-
-                  <div className={`prest-aviso ${color}`}>
-                    {modal.prestamo.prestamo_estatus === 'Vencido'
-                      ? `⚠️ Este préstamo está vencido con ${modal.prestamo.dias_retraso} día(s) de retraso. Devuélvelo en biblioteca a la brevedad.`
-                      : dias === 0
-                      ? '⚠️ Tu préstamo vence hoy. Devuélvelo antes de que cierre la biblioteca.'
-                      : dias <= 2
-                      ? `⚠️ Solo te quedan ${dias} día(s). Devuelve el libro pronto.`
-                      : `Tienes hasta el ${fl(modal.prestamo.prestamo_fecha_entrega_esperada)} para devolver el libro.`
-                    }
-                  </div>
-                </>
-              );
-            })()}
-
-            <div className="prest-modal-fechas">
-              <div className="prest-mf-item">
-                <span className="prest-mf-label">Fecha de salida</span>
-                <span className="prest-mf-val">{fl(modal.prestamo.prestamo_fecha_salida)}</span>
-              </div>
-              <div className="prest-mf-sep" />
-              <div className="prest-mf-item">
-                <span className="prest-mf-label">Entrega esperada</span>
-                <span className="prest-mf-val">{fl(modal.prestamo.prestamo_fecha_entrega_esperada)}</span>
-              </div>
-            </div>
-
-            {modal.prestamo.prestamo_dias_plazo && (
-              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                Plazo elegido: <strong>{modal.prestamo.prestamo_dias_plazo} días</strong>
-              </p>
-            )}
-
-            <div className="prest-modal-aviso-admin">
-              ℹ️ Para devolver el libro, acércate al mostrador de la biblioteca con tu credencial.
-            </div>
-
-            <div className="prest-modal-btns">
-              <button className="prest-btn-cerrar" onClick={() => setModal(null)}>
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ FOOTER ══ */}
+      {/* ── Footer ── */}
       <footer className="home-footer">
         <div className="footer-grid">
           <div>
@@ -425,17 +420,17 @@ export default function Prestamos() {
           </div>
           <div>
             <p className="footer-heading">Navegación</p>
-            {[["Catálogo", "/libros"], ["Préstamos", "/prestamos"], ["Apartados", "/apartados"]].map(([l, r]) => (
+            {[['Catálogo', '/libros'], ['Préstamos', '/prestamos'], ['Apartados', '/apartados']].map(([l, r]) => (
               <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
             ))}
           </div>
           <div>
             <p className="footer-heading">Cuenta</p>
             {usuario
-              ? [["Mis préstamos", "/prestamos"], ["Mis apartados", "/apartados"]].map(([l, r]) => (
+              ? [['Mis préstamos', '/prestamos'], ['Mis apartados', '/apartados']].map(([l, r]) => (
                   <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
                 ))
-              : [["Iniciar sesión", "/login"], ["Registrarse", "/registro"]].map(([l, r]) => (
+              : [['Iniciar sesión', '/login'], ['Registrarse', '/registro']].map(([l, r]) => (
                   <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
                 ))
             }
@@ -455,6 +450,53 @@ export default function Prestamos() {
         </div>
       </footer>
 
+      {/* ══ MODAL CANCELAR ══ */}
+      {modalCancel && (
+        <div className="prest-backdrop" onClick={() => setModalCancel(null)}>
+          <div className="prest-modal" onClick={e => e.stopPropagation()}>
+            <button className="prest-modal-x" onClick={() => setModalCancel(null)}>✕</button>
+            <div className="prest-modal-ico">📚</div>
+            <h2 className="prest-modal-title">¿Cancelar préstamo?</h2>
+
+            <div className="prest-modal-info">
+              <div className="prest-modal-row">
+                <span>Libro</span>
+                <strong>{modalCancel.libro_titulo}</strong>
+              </div>
+              <div className="prest-modal-row">
+                <span>Autor</span>
+                <strong>{modalCancel.libro_autor}</strong>
+              </div>
+              <div className="prest-modal-row">
+                <span>Solicitado</span>
+                <strong>{fc(modalCancel.prestamo_fecha_salida)}</strong>
+              </div>
+              <div className="prest-modal-row">
+                <span>Plazo</span>
+                <strong>{modalCancel.prestamo_dias_plazo} días hábiles</strong>
+              </div>
+            </div>
+
+            <p className="prest-modal-aviso">
+              El libro aún no ha sido entregado, por lo que puedes cancelar sin penalización.
+              El ejemplar quedará disponible para otros usuarios.
+            </p>
+
+            <div className="prest-modal-btns">
+              <button
+                className="prest-modal-btn-confirmar"
+                onClick={handleCancelar}
+                disabled={cancelando}
+              >
+                {cancelando ? 'Cancelando…' : 'Sí, cancelar préstamo'}
+              </button>
+              <button className="prest-modal-btn-cerrar" onClick={() => setModalCancel(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }

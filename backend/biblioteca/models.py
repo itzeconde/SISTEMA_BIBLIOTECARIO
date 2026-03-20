@@ -1,11 +1,35 @@
 from django.db import models
+from datetime import date, timedelta
+import uuid
 
 # ─────────────────────────────────────────
 # Constantes globales
 # ─────────────────────────────────────────
-DIAS_ESPERA_APARTADO = 5          # días máximos para asignar un apartado Pendiente
-DIAS_RECOGIDA        = 3          # días para recoger un apartado Asignado
-DIAS_PRESTAMO_OPTS   = [3, 5, 7]  # opciones válidas de días de préstamo
+DIAS_ESPERA_APARTADO = 5
+DIAS_RECOGIDA        = 3
+DIAS_PRESTAMO_OPTS   = [3, 5, 7]
+
+
+def calcular_fecha_limite_habiles(desde: date, dias: int) -> date:
+    festivos = set(DiaFestivo.objects.values_list('fecha', flat=True))
+    fecha = desde
+    contados = 0
+    while contados < dias:
+        fecha += timedelta(days=1)
+        if fecha.weekday() < 5 and fecha not in festivos:
+            contados += 1
+    return fecha
+
+
+class DiaFestivo(models.Model):
+    fecha       = models.DateField(unique=True)
+    descripcion = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = 'dias_festivos'
+
+    def __str__(self):
+        return f"{self.fecha} — {self.descripcion}"
 
 
 class Usuario(models.Model):
@@ -19,11 +43,27 @@ class Usuario(models.Model):
     usuario_aPaterno        = models.CharField(max_length=100)
     usuario_aMaterno        = models.CharField(max_length=100, blank=True, default='')
     usuario_password        = models.CharField(max_length=255)
+    usuario_email          = models.EmailField(max_length=255, blank=True, null=True)
     usuario_rol             = models.CharField(max_length=20, choices=ROL_CHOICES, default='usuario')
     usuario_bloqueado_hasta = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'usuarios'
+
+
+class PasswordResetToken(models.Model):
+    """Token de un solo uso para restablecer contraseña vía correo."""
+    usuario    = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    token      = models.UUIDField(default=uuid.uuid4, unique=True)
+    creado_en  = models.DateTimeField(auto_now_add=True)
+    usado      = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'password_reset_tokens'
+
+    def esta_vigente(self):
+        from django.utils import timezone
+        return not self.usado and (timezone.now() - self.creado_en).total_seconds() < 3600  # 1 hora
 
 
 class Editorial(models.Model):
@@ -58,9 +98,11 @@ class Libro(models.Model):
 
 class Prestamo(models.Model):
     ESTATUS_CHOICES = [
-        ('Activo',   'Activo'),
-        ('Devuelto', 'Devuelto'),
-        ('Vencido',  'Vencido'),
+        ('Pendiente',  'Pendiente de entrega'),
+        ('Activo',     'Activo'),
+        ('Devuelto',   'Devuelto'),
+        ('Vencido',    'Vencido'),
+        ('Cancelado',  'Cancelado por usuario'),
     ]
     prestamo_id                     = models.AutoField(primary_key=True)
     usuario                         = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
@@ -68,11 +110,23 @@ class Prestamo(models.Model):
     prestamo_fecha_salida           = models.DateField()
     prestamo_fecha_entrega_esperada = models.DateField()
     prestamo_fecha_devolucion_real  = models.DateField(null=True, blank=True)
-    prestamo_estatus                = models.CharField(max_length=20, choices=ESTATUS_CHOICES, default='Activo')
+    prestamo_estatus                = models.CharField(max_length=20, choices=ESTATUS_CHOICES, default='Pendiente')
     prestamo_dias_plazo             = models.IntegerField(null=True, blank=True)
+    prestamo_entregado_admin        = models.BooleanField(default=False)
+    prestamo_fecha_entrega_real     = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'prestamos'
+
+    def marcar_entregado_por_admin(self):
+        hoy = date.today()
+        self.prestamo_entregado_admin    = True
+        self.prestamo_fecha_entrega_real = hoy
+        self.prestamo_fecha_entrega_esperada = calcular_fecha_limite_habiles(
+            hoy, self.prestamo_dias_plazo
+        )
+        self.prestamo_estatus = 'Activo'
+        self.save()
 
 
 class Apartado(models.Model):

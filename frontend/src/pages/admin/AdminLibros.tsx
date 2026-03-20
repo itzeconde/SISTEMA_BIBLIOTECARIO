@@ -45,7 +45,6 @@ type TabCatalogo = 'libros' | 'categorias' | 'editoriales';
 
 const ITEMS_POR_PAGINA = 10;
 
-// Devuelve la clase CSS según cantidad de ejemplares
 const ejClass = (n: number) =>
   n === 0 ? 'cero' : n <= 2 ? 'bajo' : n <= 5 ? 'medio' : 'alto';
 
@@ -62,7 +61,6 @@ export default function AdminLibros() {
   const [guardando,   setGuardando]   = useState(false);
   const [pagina,      setPagina]      = useState(1);
 
-  // Para categorías y editoriales inline
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [editandoId,  setEditandoId]  = useState<number | null>(null);
   const [editNombre,  setEditNombre]  = useState('');
@@ -143,50 +141,82 @@ export default function AdminLibros() {
     finally { setGuardando(false); }
   };
 
-  // Categorías CRUD inline
+  // ── Categorías CRUD ───────────────────────────────────────────────────────
   const crearCategoria = async () => {
     if (!nuevoNombre.trim()) return;
     try {
-      await fetch(`${API}/admin/categorias/`, { method: 'POST', headers, body: JSON.stringify({ categoria_nombre: nuevoNombre }) });
+      const r    = await fetch(`${API}/admin/categorias/`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ categoria_nombre: nuevoNombre }),
+      });
+      const data = await r.json();
+      console.log('STATUS categoría:', r.status);
+      console.log('RESPUESTA categoría:', data);
+      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
       setNuevoNombre(''); cargar(); mostrar('ok', 'Categoría creada');
-    } catch { mostrar('err', 'Error al crear categoría'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
   const editarCategoria = async (id: number) => {
     try {
-      await fetch(`${API}/admin/categorias/${id}/`, { method: 'PUT', headers, body: JSON.stringify({ categoria_nombre: editNombre }) });
+      const r    = await fetch(`${API}/admin/categorias/${id}/`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ categoria_nombre: editNombre }),
+      });
+      const data = await r.json();
+      console.log('STATUS editar categoría:', r.status);
+      console.log('RESPUESTA editar categoría:', data);
+      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
       setEditandoId(null); cargar(); mostrar('ok', 'Categoría actualizada');
-    } catch { mostrar('err', 'Error al editar categoría'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
   const eliminarCategoria = async (id: number) => {
     try {
-      await fetch(`${API}/admin/categorias/${id}/`, { method: 'DELETE', headers });
+      const r = await fetch(`${API}/admin/categorias/${id}/`, { method: 'DELETE', headers });
+      console.log('STATUS eliminar categoría:', r.status);
+      if (!r.ok) throw new Error('Error al eliminar categoría');
       cargar(); mostrar('ok', 'Categoría eliminada');
-    } catch { mostrar('err', 'Error al eliminar categoría'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
-  // Editoriales CRUD inline
+  // ── Editoriales CRUD ──────────────────────────────────────────────────────
   const crearEditorial = async () => {
     if (!nuevoNombre.trim()) return;
     try {
-      await fetch(`${API}/admin/editoriales/`, { method: 'POST', headers, body: JSON.stringify({ editorial_nombre: nuevoNombre }) });
+      const r    = await fetch(`${API}/admin/editoriales/`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ editorial_nombre: nuevoNombre }),
+      });
+      const data = await r.json();
+      console.log('STATUS editorial:', r.status);
+      console.log('RESPUESTA editorial:', data);
+      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
       setNuevoNombre(''); cargar(); mostrar('ok', 'Editorial creada');
-    } catch { mostrar('err', 'Error al crear editorial'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
   const editarEditorial = async (id: number) => {
     try {
-      await fetch(`${API}/admin/editoriales/${id}/`, { method: 'PUT', headers, body: JSON.stringify({ editorial_nombre: editNombre }) });
+      const r    = await fetch(`${API}/admin/editoriales/${id}/`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ editorial_nombre: editNombre }),
+      });
+      const data = await r.json();
+      console.log('STATUS editar editorial:', r.status);
+      console.log('RESPUESTA editar editorial:', data);
+      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
       setEditandoId(null); cargar(); mostrar('ok', 'Editorial actualizada');
-    } catch { mostrar('err', 'Error al editar editorial'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
   const eliminarEditorial = async (id: number) => {
     try {
-      await fetch(`${API}/admin/editoriales/${id}/`, { method: 'DELETE', headers });
+      const r = await fetch(`${API}/admin/editoriales/${id}/`, { method: 'DELETE', headers });
+      console.log('STATUS eliminar editorial:', r.status);
+      if (!r.ok) throw new Error('Error al eliminar editorial');
       cargar(); mostrar('ok', 'Editorial eliminada');
-    } catch { mostrar('err', 'Error al eliminar editorial'); }
+    } catch (e: any) { mostrar('err', e.message); }
   };
 
   // Paginación
@@ -288,36 +318,17 @@ export default function AdminLibros() {
                     </tbody>
                   </table>
 
-                  {/* Paginación */}
                   {totalPaginas > 1 && (
                     <div className="alib-pagination">
-                      <button
-                        className="alib-pg-btn"
-                        onClick={() => setPagina(p => Math.max(1, p - 1))}
-                        disabled={pagina === 1}
-                      >
-                        ‹ Anterior
-                      </button>
+                      <button className="alib-pg-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}>‹ Anterior</button>
                       <div className="alib-pg-nums">
                         {numeros.map((n, i) =>
                           n === '...'
                             ? <span key={`e${i}`} className="alib-pg-ellipsis">…</span>
-                            : <button
-                                key={n}
-                                className={`alib-pg-num ${pagina === n ? 'active' : ''}`}
-                                onClick={() => setPagina(n as number)}
-                              >
-                                {n}
-                              </button>
+                            : <button key={n} className={`alib-pg-num ${pagina === n ? 'active' : ''}`} onClick={() => setPagina(n as number)}>{n}</button>
                         )}
                       </div>
-                      <button
-                        className="alib-pg-btn"
-                        onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                        disabled={pagina === totalPaginas}
-                      >
-                        Siguiente ›
-                      </button>
+                      <button className="alib-pg-btn" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}>Siguiente ›</button>
                     </div>
                   )}
                 </div>
@@ -339,6 +350,11 @@ export default function AdminLibros() {
                 <button className="alib-btn-nuevo" onClick={crearCategoria}>Agregar</button>
               </div>
               <div className="alib-lista">
+                {categorias.length === 0 && (
+                  <div className="alib-lista-item" style={{ justifyContent: 'center', color: 'var(--admin-muted)' }}>
+                    No hay categorías registradas
+                  </div>
+                )}
                 {categorias.map(c => (
                   <div key={c.categoria_id} className="alib-lista-item">
                     {editandoId === c.categoria_id ? (
@@ -376,6 +392,11 @@ export default function AdminLibros() {
                 <button className="alib-btn-nuevo" onClick={crearEditorial}>Agregar</button>
               </div>
               <div className="alib-lista">
+                {editoriales.length === 0 && (
+                  <div className="alib-lista-item" style={{ justifyContent: 'center', color: 'var(--admin-muted)' }}>
+                    No hay editoriales registradas
+                  </div>
+                )}
                 {editoriales.map(e => (
                   <div key={e.editorial_id} className="alib-lista-item">
                     {editandoId === e.editorial_id ? (

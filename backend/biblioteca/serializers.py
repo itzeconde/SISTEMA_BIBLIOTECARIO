@@ -13,9 +13,14 @@ class RegistroSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = [
             'usuario_nombre', 'usuario_aPaterno', 'usuario_aMaterno',
-            'matricula_id', 'usuario_password',
+            'matricula_id', 'usuario_email', 'usuario_password',
         ]
         extra_kwargs = {'usuario_password': {'write_only': True}}
+
+    def validate_usuario_email(self, value):
+        if Usuario.objects.filter(usuario_email__iexact=value).exists():
+            raise serializers.ValidationError("Este correo ya está registrado.")
+        return value.lower()
 
     def create(self, validated_data):
         validated_data['usuario_password'] = make_password(validated_data['usuario_password'])
@@ -49,7 +54,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = [
             'usuario_id', 'usuario_nombre', 'usuario_aPaterno', 'usuario_aMaterno',
-            'matricula_id', 'usuario_rol', 'usuario_bloqueado_hasta',
+            'matricula_id', 'usuario_email', 'usuario_rol', 'usuario_bloqueado_hasta',
             'esta_bloqueado', 'dias_bloqueo_restantes',
         ]
 
@@ -63,6 +68,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
 
 class UsuarioAdminSerializer(serializers.ModelSerializer):
+    """
+    El admin NO puede ver ni cambiar la contraseña de usuarios existentes.
+    Solo puede establecerla al CREAR (requerida en ese caso).
+    """
     esta_bloqueado         = serializers.SerializerMethodField()
     dias_bloqueo_restantes = serializers.SerializerMethodField()
     usuario_password       = serializers.CharField(write_only=True, required=False)
@@ -71,8 +80,9 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = [
             'usuario_id', 'usuario_nombre', 'usuario_aPaterno', 'usuario_aMaterno',
-            'matricula_id', 'usuario_rol', 'usuario_bloqueado_hasta',
-            'esta_bloqueado', 'dias_bloqueo_restantes', 'usuario_password',
+            'matricula_id', 'usuario_email', 'usuario_rol', 'usuario_bloqueado_hasta',
+            'esta_bloqueado', 'dias_bloqueo_restantes',
+            'usuario_password',
         ]
 
     def get_esta_bloqueado(self, obj):
@@ -84,16 +94,16 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
         return 0
 
     def create(self, validated_data):
-        if 'usuario_password' in validated_data:
-            validated_data['usuario_password'] = make_password(validated_data['usuario_password'])
+        password = validated_data.get('usuario_password')
+        if not password:
+            raise serializers.ValidationError({'usuario_password': 'La contraseña es requerida al crear un usuario.'})
+        validated_data['usuario_password'] = make_password(password)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        if 'usuario_password' in validated_data:
-            validated_data['usuario_password'] = make_password(validated_data['usuario_password'])
+        validated_data.pop('usuario_password', None)
+        validated_data.pop('usuario_rol', None)  # ← el rol no se puede cambiar al editar
         return super().update(instance, validated_data)
-
-
 # ─────────────────────────────────────────
 # Categorías, Editoriales y Libros
 # ─────────────────────────────────────────
@@ -119,8 +129,8 @@ class LibroSerializer(serializers.ModelSerializer):
         fields = [
             'libro_id', 'libro_titulo', 'libro_autor',
             'libro_isbn', 'libro_ejemplares', 'libro_descripcion',
-            'categoria_id', 'categoria_nombre',
-            'editorial_id', 'editorial_nombre',
+            'categoria', 'categoria_nombre',
+            'editorial', 'editorial_nombre',
         ]
 
 
@@ -129,12 +139,14 @@ class LibroSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────
 
 class PrestamoSerializer(serializers.ModelSerializer):
-    libro_titulo   = serializers.CharField(source='libro.libro_titulo', read_only=True)
-    libro_autor    = serializers.CharField(source='libro.libro_autor',  read_only=True)
-    usuario_nombre = serializers.SerializerMethodField()
-    usuario_id     = serializers.IntegerField(source='usuario.usuario_id', read_only=True)
-    matricula_id   = serializers.CharField(source='usuario.matricula_id',  read_only=True)
-    dias_retraso   = serializers.SerializerMethodField()
+    libro_titulo                = serializers.CharField(source='libro.libro_titulo', read_only=True)
+    libro_autor                 = serializers.CharField(source='libro.libro_autor',  read_only=True)
+    usuario_nombre              = serializers.SerializerMethodField()
+    usuario_id                  = serializers.IntegerField(source='usuario.usuario_id', read_only=True)
+    matricula_id                = serializers.CharField(source='usuario.matricula_id',  read_only=True)
+    dias_retraso                = serializers.SerializerMethodField()
+    prestamo_entregado_admin    = serializers.BooleanField(read_only=True)
+    prestamo_fecha_entrega_real = serializers.DateField(read_only=True)
 
     class Meta:
         model  = Prestamo
@@ -144,6 +156,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
             'prestamo_fecha_salida', 'prestamo_fecha_entrega_esperada',
             'prestamo_fecha_devolucion_real', 'prestamo_estatus',
             'prestamo_dias_plazo', 'dias_retraso',
+            'prestamo_entregado_admin', 'prestamo_fecha_entrega_real',
         ]
 
     def get_usuario_nombre(self, obj):
@@ -151,7 +164,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
         return f"{u.usuario_nombre} {u.usuario_aPaterno} {u.usuario_aMaterno}".strip()
 
     def get_dias_retraso(self, obj):
-        if obj.prestamo_estatus != 'Devuelto':
+        if obj.prestamo_estatus == 'Activo':
             hoy = date.today()
             if hoy > obj.prestamo_fecha_entrega_esperada:
                 return (hoy - obj.prestamo_fecha_entrega_esperada).days
@@ -164,7 +177,7 @@ class PrestamoCreateSerializer(serializers.ModelSerializer):
         fields = [
             'usuario', 'libro',
             'prestamo_fecha_salida', 'prestamo_fecha_entrega_esperada',
-            'prestamo_estatus', 'prestamo_dias_plazo',  
+            'prestamo_estatus', 'prestamo_dias_plazo',
         ]
 
 
@@ -212,7 +225,6 @@ class ApartadoCreateSerializer(serializers.ModelSerializer):
             'apartado_fecha_asignacion', 'apartado_fecha_limite_recogida',
             'apartado_estatus',
         ]
-
 
 
 class ApartadoUpdateSerializer(serializers.ModelSerializer):

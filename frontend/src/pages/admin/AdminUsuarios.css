@@ -384,3 +384,142 @@
     text-align: center;
   }
 }
+
+/* ── Agrega esto al final de AdminUsuarios.css ── */
+
+/* Nota informativa en modal editar */
+.ausu-modal-nota {
+  font-size: 12px;
+  font-family: sans-serif;
+  color: var(--admin-muted);
+  background: rgba(59, 76, 202, 0.08);
+  border: 1px solid rgba(59, 76, 202, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Span2 para el grid del modal */
+.ausu-span2 { grid-column: span 2; }
+
+/* ── Agrega esto al final de Login.css ── */
+
+/* Pantalla de éxito en recuperación */
+.recuperar-exito {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.recuperar-icono {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.aprest-modal-sm { max-width: 380px; }
+
+.aprest-dev-ico {
+  font-size: 40px; text-align: center; margin-bottom: 12px;
+}
+
+.aprest-dev-alerta {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #ef4444;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 13px; font-family: sans-serif; line-height: 1.5;
+}
+
+.aprest-btn-confirmar {
+  flex: 1; padding: 11px;
+  background: var(--admin-accent); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: sans-serif; transition: background 0.2s;
+}
+.aprest-btn-confirmar:hover:not(:disabled) { background: #2d3a9e; }
+.aprest-btn-confirmar:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.aprest-btn-cancelar {
+  padding: 11px 20px; background: none;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-muted); border-radius: 8px;
+  font-size: 14px; cursor: pointer;
+  font-family: sans-serif; transition: background 0.2s;
+}
+.aprest-btn-cancelar:hover { background: var(--admin-border); color: var(--admin-text); }
+
+.aprest-modal-sub {
+  font-size: 13px; color: var(--admin-muted);
+  font-family: sans-serif; margin-bottom: 20px; line-height: 1.5;
+}
+
+.aprest-retraso {
+  display: inline-block;
+  font-size: 12px; font-weight: 700;
+  background: rgba(239,68,68,0.15); color: #ef4444;
+  padding: 2px 8px; border-radius: 5px;
+}
+
+.aprest-btn-nuevo {
+  background: var(--admin-accent); color: #fff;
+  border: none; padding: 10px 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: sans-serif; transition: background 0.2s; white-space: nowrap;
+}
+.aprest-btn-nuevo:hover { background: #2d3a9e; }
+
+.aprest-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+
+.aprest-form-group { display: flex; flex-direction: column; gap: 6px; }
+.aprest-form-group label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--admin-muted); font-family: sans-serif;
+}
+.aprest-form-group input {
+  padding: 10px 12px;
+  background: var(--admin-bg); border: 1px solid var(--admin-border);
+  border-radius: 8px; color: var(--admin-text);
+  font-size: 14px; font-family: sans-serif; outline: none;
+  transition: border-color 0.2s;
+}
+.aprest-form-group input:focus { border-color: var(--admin-accent); }
+
+.aprest-libro-search-wrap { position: relative; }
+
+.aprest-libro-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  background: var(--admin-card-bg); border: 1px solid var(--admin-border);
+  border-radius: 8px; margin-top: 4px; overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.aprest-libro-option {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; padding: 10px 14px; text-align: left;
+  background: none; border: none; cursor: pointer;
+  border-bottom: 1px solid var(--admin-border);
+  transition: background 0.15s;
+}
+.aprest-libro-option:last-child { border-bottom: none; }
+.aprest-libro-option:hover { background: var(--admin-border); }
+
+.aplo-titulo { font-size: 13px; font-weight: 600; color: var(--admin-text); font-family: sans-serif; }
+.aplo-autor  { font-size: 11px; color: var(--admin-muted); font-family: sans-serif; }
+
+.aprest-libro-empty {
+  padding: 12px 14px; font-size: 13px;
+  color: var(--admin-muted); font-family: sans-serif; margin: 0;
+}
+
+.aprest-libro-check {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: #10b981; font-weight: 700;
+}
+
+.aprest-libro-selecto {
+  font-size: 12px; color: var(--admin-muted);
+  font-family: sans-serif; margin-top: 6px; line-height: 1.4;
+}

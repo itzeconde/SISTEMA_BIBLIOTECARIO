@@ -12,47 +12,27 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 .login-page {
-  display: flex;
-  min-height: 100vh;
+  display: flex; min-height: 100vh;
   font-family: "Georgia", "Times New Roman", serif;
 }
 
-/* ── PANEL IZQUIERDO — IMAGEN ───────────────────────────── */
 .login-panel-img {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  display: none;
+  flex: 1; position: relative; overflow: hidden; display: none;
 }
+@media (min-width: 768px) { .login-panel-img { display: block; } }
 
-@media (min-width: 768px) {
-  .login-panel-img { display: block; }
-}
-
-.login-panel-img img {
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-}
+.login-panel-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .login-panel-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(
-    160deg,
-    rgba(27, 36, 120, 0.82) 0%,
-    rgba(0, 0, 0, 0.45) 100%
-  );
+  background: linear-gradient(160deg, rgba(27,36,120,0.82) 0%, rgba(0,0,0,0.45) 100%);
 }
 
 .login-panel-texto {
-  position: absolute;
-  bottom: 60px; left: 48px;
-  color: #fff; max-width: 420px;
+  position: absolute; bottom: 60px; left: 48px; color: #fff; max-width: 420px;
 }
 
-.login-logo-wrap {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 32px;
-}
+.login-logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
 
 .login-logo-icon {
   width: 38px; height: 38px; border-radius: 10px;
@@ -61,10 +41,7 @@
   font-family: Georgia, serif; font-weight: 700; font-size: 20px;
 }
 
-.login-logo-text {
-  font-family: Georgia, serif; font-weight: 700;
-  font-size: 18px; color: #fff;
-}
+.login-logo-text { font-family: Georgia, serif; font-weight: 700; font-size: 18px; color: #fff; }
 
 .login-panel-titulo {
   font-family: Georgia, serif; font-size: 32px;
@@ -76,55 +53,28 @@
   color: rgba(255,255,255,0.82); line-height: 1.6; margin: 0;
 }
 
-/* ── BOTÓN VOLVER FLOTANTE ──────────────────────────────── */
 .login-volver-btn {
-  position: absolute;
-  top: 24px; left: 24px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
+  position: absolute; top: 24px; left: 24px; z-index: 10;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #fff;
-  font-family: sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 20px;
-  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.3); color: #fff;
+  font-family: sans-serif; font-size: 13px; font-weight: 600;
+  padding: 8px 16px; border-radius: 20px; cursor: pointer;
   transition: background 0.2s, transform 0.15s;
 }
-.login-volver-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateX(-2px);
-}
+.login-volver-btn:hover { background: rgba(255,255,255,0.25); transform: translateX(-2px); }
 
-/* ── PANEL DERECHO — FORMULARIO ─────────────────────────── */
 .login-panel-form {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 32px;
-  background: #fff;
+  width: 100%; max-width: 480px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 48px 32px; background: #fff;
 }
 
-.login-form-wrap {
-  width: 100%;
-  max-width: 380px;
-}
+.login-form-wrap { width: 100%; max-width: 380px; }
 
-.login-logo-mobile {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 32px;
-}
-@media (min-width: 768px) {
-  .login-logo-mobile { display: none; }
-}
-.login-logo-mobile .login-logo-icon {
-  background: var(--blue); color: #fff;
-}
+.login-logo-mobile { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+@media (min-width: 768px) { .login-logo-mobile { display: none; } }
+.login-logo-mobile .login-logo-icon { background: var(--blue); color: #fff; }
 .login-logo-mobile .login-logo-text { color: var(--text); }
 
 .login-titulo {
@@ -137,84 +87,59 @@
   color: var(--muted); margin: 0 0 32px; line-height: 1.5;
 }
 
-/* ── FORM ───────────────────────────────────────────────── */
-.login-form {
-  display: flex; flex-direction: column; gap: 20px;
+.login-form { display: flex; flex-direction: column; gap: 20px; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+
+/* Fila label + link olvidé contraseña */
+.login-label-row {
+  display: flex; align-items: center; justify-content: space-between;
 }
 
-.form-group {
-  display: flex; flex-direction: column; gap: 6px;
+.login-forgot-link {
+  font-family: sans-serif; font-size: 12px;
+  color: var(--blue); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  transition: color 0.15s;
 }
+.login-forgot-link:hover { color: var(--blue-dark); }
 
-.form-label {
-  font-family: sans-serif; font-size: 13px;
-  font-weight: 700; color: var(--text);
-}
+.form-label { font-family: sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
 
 .form-input {
   border: 1.5px solid var(--border); border-radius: 8px;
   padding: 11px 14px; font-size: 14px; outline: none;
   font-family: sans-serif; color: var(--text);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s; background: #fff;
 }
-.form-input:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(59,76,202,0.12);
-}
+.form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,76,202,0.12); }
 
 .login-error {
-  font-family: sans-serif; font-size: 13px;
-  color: var(--red); background: #fee2e2;
-  border-radius: 8px; padding: 10px 14px;
-  margin: 0;
+  font-family: sans-serif; font-size: 13px; color: var(--red);
+  background: #fee2e2; border-radius: 8px; padding: 10px 14px; margin: 0;
 }
 
 .btn-login {
   width: 100%; padding: 13px; border-radius: 8px;
   border: none; background: var(--blue); color: #fff;
   font-size: 15px; font-weight: 700; cursor: pointer;
-  font-family: sans-serif; transition: background 0.2s;
-  margin-top: 4px;
+  font-family: sans-serif; transition: background 0.2s; margin-top: 4px;
 }
 .btn-login:hover:not(:disabled) { background: var(--blue-dark); }
-.btn-login:disabled {
-  opacity: 0.65; cursor: not-allowed;
-}
+.btn-login:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* ── DIVIDER ────────────────────────────────────────────── */
-.login-divider {
-  display: flex; align-items: center; gap: 12px;
-  margin: 24px 0;
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; }
+.login-divider::before, .login-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
 }
-.login-divider::before,
-.login-divider::after {
-  content: ""; flex: 1;
-  height: 1px; background: var(--border);
-}
-.login-divider span {
-  font-family: sans-serif; font-size: 12px; color: var(--muted);
-}
+.login-divider span { font-family: sans-serif; font-size: 12px; color: var(--muted); }
 
-/* ── LINKS ──────────────────────────────────────────────── */
 .login-volver {
-  font-family: sans-serif; font-size: 13px;
-  color: var(--muted); text-align: center; margin: 0 0 16px;
+  font-family: sans-serif; font-size: 13px; color: var(--muted);
+  text-align: center; margin: 0 0 16px;
 }
 
-.login-link {
-  color: var(--blue); font-weight: 600;
-  cursor: pointer; text-decoration: underline;
-}
+.login-link { color: var(--blue); font-weight: 600; cursor: pointer; text-decoration: underline; }
 .login-link:hover { color: var(--blue-dark); }
 
-.login-nota {
-  font-family: sans-serif; font-size: 12px;
-  color: var(--muted); text-align: center;
-  line-height: 1.5; margin: 0;
-}
-
-/* ── RESPONSIVE ─────────────────────────────────────────── */
-@media (max-width: 480px) {
-  .login-panel-form { padding: 32px 20px; }
-}
+@media (max-width: 480px) { .login-panel-form { padding: 32px 20px; } }
