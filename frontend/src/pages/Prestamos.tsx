@@ -406,7 +406,7 @@ export default function Prestamos() {
         )}
       </div>
 
-      {/* ── Footer ── */}
+     {/* ══ FOOTER ══ */}
       <footer className="home-footer">
         <div className="footer-grid">
           <div>
@@ -420,28 +420,27 @@ export default function Prestamos() {
           </div>
           <div>
             <p className="footer-heading">Navegación</p>
-            {[['Catálogo', '/libros'], ['Préstamos', '/prestamos'], ['Apartados', '/apartados']].map(([l, r]) => (
+            {[["Catálogo", "/libros"], ["Préstamos", "/prestamos"], ["Apartados", "/apartados"]].map(([l, r]) => (
               <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
             ))}
           </div>
           <div>
             <p className="footer-heading">Cuenta</p>
             {usuario
-              ? [['Mis préstamos', '/prestamos'], ['Mis apartados', '/apartados']].map(([l, r]) => (
+              ? [["Mis préstamos", "/prestamos"], ["Mis apartados", "/apartados"]].map(([l, r]) => (
                   <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
                 ))
-              : [['Iniciar sesión', '/login'], ['Registrarse', '/registro']].map(([l, r]) => (
+              : [["Iniciar sesión", "/login"], ["Registrarse", "/registro"]].map(([l, r]) => (
                   <p key={l} className="footer-link" onClick={() => navigate(r)}>{l}</p>
                 ))
             }
           </div>
           <div>
-            <p className="footer-heading">Boletín informativo</p>
-            <p className="footer-desc">Recibe novedades directamente en tu correo institucional.</p>
-            <div className="newsletter-row">
-              <input className="newsletter-input" placeholder="tu@alumno.web.mx" />
-              <button className="newsletter-btn">Suscribir</button>
-            </div>
+            <p className="footer-heading">Horarios</p>
+            <p className="footer-desc">📅 Lunes a Viernes</p>
+            <p className="footer-desc">8:00 am — 4:00 pm</p>
+            <p className="footer-desc" style={{ marginTop: 8 }}>📅 Sábado y Domingo</p>
+            <p className="footer-desc">Cerrado</p>
           </div>
         </div>
         <div className="footer-bottom">
@@ -449,6 +448,7 @@ export default function Prestamos() {
           <span>Privacidad · Términos de uso · Accesibilidad</span>
         </div>
       </footer>
+
 
       {/* ══ MODAL CANCELAR ══ */}
       {modalCancel && (

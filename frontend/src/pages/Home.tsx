@@ -88,17 +88,20 @@ export default function Home() {
     else navigate(ruta);
   };
 
+  // ── Búsqueda recortando espacios al inicio y al final ──
   const handleBuscar = () => {
-    if (search.trim()) navigate(`/libros?busqueda=${encodeURIComponent(search)}`);
+    const termino = search.trim();
+    if (termino) navigate(`/libros?busqueda=${encodeURIComponent(termino)}`);
     else navigate("/libros");
   };
+  // ───────────────────────────────────────────────────────
 
   const categoriasDestacadas = categorias.slice(0, 4);
 
   return (
     <div className="home-page">
 
-      {/* ══ SEARCH BAR (sin header — el navbar lo pone Layout/Navbar) ══ */}
+      {/* ══ SEARCH BAR ══ */}
       <div className="search-bar">
         <div className="search-wrap">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
@@ -309,12 +312,11 @@ export default function Home() {
             }
           </div>
           <div>
-            <p className="footer-heading">Boletín informativo</p>
-            <p className="footer-desc">Recibe novedades directamente en tu correo institucional.</p>
-            <div className="newsletter-row">
-              <input className="newsletter-input" placeholder="tu@alumno.web.mx" />
-              <button className="newsletter-btn">Suscribir</button>
-            </div>
+            <p className="footer-heading">Horarios</p>
+            <p className="footer-desc">📅 Lunes a Viernes</p>
+            <p className="footer-desc">8:00 am — 4:00 pm</p>
+            <p className="footer-desc" style={{ marginTop: 8 }}>📅 Sábado y Domingo</p>
+            <p className="footer-desc">Cerrado</p>
           </div>
         </div>
         <div className="footer-bottom">

@@ -58,7 +58,6 @@ export default function AdminPrestamos() {
     try {
       const params = new URLSearchParams();
       if (estatus) params.append('estatus', estatus);
-      if (filtro)  params.append('busqueda', filtro);
       const r = await fetch(`${API}/admin/prestamos/?${params}`, { headers });
       setPrestamos(await r.json());
       setPagina(1);
@@ -73,6 +72,18 @@ export default function AdminPrestamos() {
 
   useEffect(() => { cargar(); cargarLibros(); }, []);
   useEffect(() => { cargar(); }, [estatus]);
+
+  // ── Filtro en tiempo real (nombre, matrícula, libro) ──────
+  const prestamosFiltrados = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    if (!q) return prestamos;
+    return prestamos.filter(p =>
+      p.usuario_nombre.toLowerCase().includes(q) ||
+      p.matricula_id.toLowerCase().includes(q)   ||
+      p.libro_titulo.toLowerCase().includes(q)
+    );
+  }, [filtro, prestamos]);
+  // ─────────────────────────────────────────────────────────
 
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
     setMsg({ tipo, texto });
@@ -114,7 +125,6 @@ export default function AdminPrestamos() {
     finally { setProcesando(false); }
   };
 
-  // Marcar libro como entregado físicamente al usuario
   const handleEntregar = async () => {
     if (modal?.tipo !== 'entregar') return;
     setProcesando(true);
@@ -155,8 +165,8 @@ export default function AdminPrestamos() {
     e === 'Devuelto'  ? 'devuelto'  :
     e === 'Pendiente' ? 'pendiente' : 'vencido';
 
-  const totalPaginas = Math.ceil(prestamos.length / POR_PAGINA);
-  const paginados    = prestamos.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const totalPaginas = Math.ceil(prestamosFiltrados.length / POR_PAGINA);
+  const paginados    = prestamosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   const numeros = Array.from({ length: totalPaginas }, (_, i) => i + 1)
     .filter(n => n === 1 || n === totalPaginas || Math.abs(n - pagina) <= 1)
@@ -171,7 +181,7 @@ export default function AdminPrestamos() {
       <div className="aprest-header">
         <div>
           <h1 className="aprest-title">Préstamos</h1>
-          <p className="aprest-sub">{prestamos.length} préstamo(s) encontrado(s)</p>
+          <p className="aprest-sub">{prestamosFiltrados.length} préstamo(s) encontrado(s)</p>
         </div>
         <button className="aprest-btn-nuevo" onClick={() => setModal({ tipo: 'registrar' })}>
           + Registrar préstamo
@@ -185,8 +195,7 @@ export default function AdminPrestamos() {
           className="aprest-search"
           placeholder="Buscar por nombre, matrícula o libro…"
           value={filtro}
-          onChange={e => setFiltro(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && cargar()}
+          onChange={e => { setFiltro(e.target.value); setPagina(1); }}
         />
         <select className="aprest-select" value={estatus} onChange={e => setEstatus(e.target.value)}>
           <option value="">Todos</option>
@@ -195,12 +204,11 @@ export default function AdminPrestamos() {
           <option value="Vencido">Vencidos</option>
           <option value="Devuelto">Devueltos</option>
         </select>
-        <button className="aprest-btn-buscar" onClick={cargar}>Buscar</button>
       </div>
 
       {loading ? (
         <div className="aprest-loading"><div className="aprest-spinner" /><p>Cargando…</p></div>
-      ) : prestamos.length === 0 ? (
+      ) : prestamosFiltrados.length === 0 ? (
         <div className="aprest-empty"><p>No se encontraron préstamos.</p></div>
       ) : (
         <div className="aprest-tabla-wrap">
@@ -246,7 +254,6 @@ export default function AdminPrestamos() {
                   </td>
                   <td>
                     <div className="aprest-acciones">
-                      {/* Pendiente → botón Entregar */}
                       {p.prestamo_estatus === 'Pendiente' && (
                         <button
                           className="aprest-btn-entregar"
@@ -255,7 +262,6 @@ export default function AdminPrestamos() {
                           Entregar
                         </button>
                       )}
-                      {/* Activo o Vencido → botón Devolver */}
                       {(p.prestamo_estatus === 'Activo' || p.prestamo_estatus === 'Vencido') && (
                         <button
                           className="aprest-btn-devolver"

@@ -1,5 +1,5 @@
 // src/pages/admin/AdminApartados.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './AdminApartados.css';
 
 const API        = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -15,7 +15,7 @@ interface Apartado {
   libro_autor:               string;
   apartado_fecha:            string;
   apartado_fecha_expiracion: string;
-  apartado_estatus:          'Pendiente' | 'Asignado' | 'Cancelado' | 'Prestamo';
+  apartado_estatus:          'Pendiente' | 'Asignado' | 'Cancelado' | 'Convertido';
   dias_restantes:            number;
 }
 
@@ -37,7 +37,6 @@ export default function AdminApartados() {
     try {
       const params = new URLSearchParams();
       if (estatus) params.append('estatus', estatus);
-      if (filtro)  params.append('busqueda', filtro);
       const r = await fetch(`${API}/admin/apartados/?${params}`, { headers });
       setApartados(await r.json());
       setPagina(1);
@@ -47,6 +46,18 @@ export default function AdminApartados() {
 
   useEffect(() => { cargar(); }, []);
   useEffect(() => { cargar(); }, [estatus]);
+
+  // ── Filtro en tiempo real (nombre, matrícula, libro) ──────
+  const apartadosFiltrados = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    if (!q) return apartados;
+    return apartados.filter(a =>
+      a.usuario_nombre.toLowerCase().includes(q) ||
+      a.matricula_id.toLowerCase().includes(q)   ||
+      a.libro_titulo.toLowerCase().includes(q)
+    );
+  }, [filtro, apartados]);
+  // ─────────────────────────────────────────────────────────
 
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
     setMsg({ tipo, texto });
@@ -82,11 +93,14 @@ export default function AdminApartados() {
     e === 'Asignado'   ? 'asignado'   :
     e === 'Cancelado'  ? 'cancelado'  : 'convertido';
 
-  const esActivo = (est: string) => est === 'Pendiente' || est === 'Asignado';
+  const estatusTexto = (e: string) =>
+    e === "Convertido" ? "Pasó a préstamo" : e;
 
-  // Paginación
-  const totalPaginas = Math.ceil(apartados.length / POR_PAGINA);
-  const paginados    = apartados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const esActivo = (est: string) => est === "Pendiente" || est === "Asignado";
+
+  // Paginación sobre resultados filtrados
+  const totalPaginas = Math.ceil(apartadosFiltrados.length / POR_PAGINA);
+  const paginados    = apartadosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
   const numeros = Array.from({ length: totalPaginas }, (_, i) => i + 1)
     .filter(n => n === 1 || n === totalPaginas || Math.abs(n - pagina) <= 1)
@@ -101,7 +115,7 @@ export default function AdminApartados() {
       <div className="aapart-header">
         <div>
           <h1 className="aapart-title">Apartados</h1>
-          <p className="aapart-sub">{apartados.length} apartado(s) encontrado(s)</p>
+          <p className="aapart-sub">{apartadosFiltrados.length} apartado(s) encontrado(s)</p>
         </div>
       </div>
 
@@ -113,8 +127,7 @@ export default function AdminApartados() {
           className="aapart-search"
           placeholder="Buscar por nombre, matrícula o libro…"
           value={filtro}
-          onChange={e => setFiltro(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && cargar()}
+          onChange={e => { setFiltro(e.target.value); setPagina(1); }}
         />
         <select className="aapart-select" value={estatus} onChange={e => setEstatus(e.target.value)}>
           <option value="">Todos</option>
@@ -123,13 +136,12 @@ export default function AdminApartados() {
           <option value="Cancelado">Cancelados</option>
           <option value="Convertido">Convertidos</option>
         </select>
-        <button className="aapart-btn-buscar" onClick={cargar}>Buscar</button>
       </div>
 
       {/* Tabla */}
       {loading ? (
         <div className="aapart-loading"><div className="aapart-spinner" /><p>Cargando…</p></div>
-      ) : apartados.length === 0 ? (
+      ) : apartadosFiltrados.length === 0 ? (
         <div className="aapart-empty"><p>No se encontraron apartados.</p></div>
       ) : (
         <div className="aapart-tabla-wrap">
@@ -169,7 +181,7 @@ export default function AdminApartados() {
                   </td>
                   <td>
                     <span className={`aapart-pill ${estatusColor(a.apartado_estatus)}`}>
-                      {a.apartado_estatus}
+                      {estatusTexto(a.apartado_estatus)}
                     </span>
                   </td>
                   <td>
