@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import date
 from .models import Usuario, Libro, Categoria, Editorial, Prestamo, Apartado, Multa
+import re
 
 
 # ─────────────────────────────────────────
@@ -16,6 +17,29 @@ class RegistroSerializer(serializers.ModelSerializer):
             'matricula_id', 'usuario_email', 'usuario_password',
         ]
         extra_kwargs = {'usuario_password': {'write_only': True}}
+
+    def solo_letras(self, valor):
+        return bool(re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$', valor.strip()))
+
+    def validate_usuario_nombre(self, value):
+        if not self.solo_letras(value):
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
+        return value.strip()
+
+    def validate_usuario_aPaterno(self, value):
+        if not self.solo_letras(value):
+            raise serializers.ValidationError("El apellido paterno solo puede contener letras y espacios.")
+        return value.strip()
+
+    def validate_usuario_aMaterno(self, value):
+        if value and not self.solo_letras(value):
+            raise serializers.ValidationError("El apellido materno solo puede contener letras y espacios.")
+        return value.strip() if value else value
+
+    def validate_usuario_password(self, value):
+        if len(value) < 6:
+            raise serializers.ValidationError("La contraseña debe tener al menos 6 caracteres.")
+        return value
 
     def validate_usuario_email(self, value):
         if Usuario.objects.filter(usuario_email__iexact=value).exists():
@@ -85,6 +109,24 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             'usuario_password',
         ]
 
+    def solo_letras(self, valor):
+        return bool(re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$', valor.strip()))
+
+    def validate_usuario_nombre(self, value):
+        if not self.solo_letras(value):
+            raise serializers.ValidationError("El nombre solo puede contener letras y espacios.")
+        return value.strip()
+
+    def validate_usuario_aPaterno(self, value):
+        if not self.solo_letras(value):
+            raise serializers.ValidationError("El apellido paterno solo puede contener letras y espacios.")
+        return value.strip()
+
+    def validate_usuario_aMaterno(self, value):
+        if value and not self.solo_letras(value):
+            raise serializers.ValidationError("El apellido materno solo puede contener letras y espacios.")
+        return value.strip() if value else value
+
     def get_esta_bloqueado(self, obj):
         return bool(obj.usuario_bloqueado_hasta and obj.usuario_bloqueado_hasta >= date.today())
 
@@ -102,8 +144,10 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         validated_data.pop('usuario_password', None)
-        validated_data.pop('usuario_rol', None)  # ← el rol no se puede cambiar al editar
+        validated_data.pop('usuario_rol', None)
         return super().update(instance, validated_data)
+
+
 # ─────────────────────────────────────────
 # Categorías, Editoriales y Libros
 # ─────────────────────────────────────────

@@ -17,6 +17,23 @@ const detectarTipo = (valor: string): "alumno" | "maestro" | null => {
   return null;
 };
 
+// ── Validación: solo letras, espacios y acentos ──────────────
+const soloLetras = (valor: string) =>
+  /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/.test(valor.trim());
+
+const validarForm = (form: FormRegistro): string => {
+  if (!soloLetras(form.usuario_nombre))
+    return "El nombre solo puede contener letras y espacios.";
+  if (!soloLetras(form.usuario_aPaterno))
+    return "El apellido paterno solo puede contener letras y espacios.";
+  if (form.usuario_aMaterno && !soloLetras(form.usuario_aMaterno))
+    return "El apellido materno solo puede contener letras y espacios.";
+  if (form.usuario_password.length < 6)
+    return "La contraseña debe tener al menos 6 caracteres.";
+  return "";
+};
+// ─────────────────────────────────────────────────────────────
+
 export default function Registro() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormRegistro>({
@@ -40,6 +57,10 @@ export default function Registro() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // ── Validar campos antes de enviar ──
+    const mensajeError = validarForm(form);
+    if (mensajeError) { setError(mensajeError); return; }
 
     const tipo = detectarTipo(form.matricula_id);
     if (!tipo) {

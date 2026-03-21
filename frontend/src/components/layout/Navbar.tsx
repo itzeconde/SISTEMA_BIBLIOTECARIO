@@ -83,18 +83,7 @@ export default function Navbar({ usuario, onCerrarSesion }: Props) {
             <span /><span /><span />
           </button>
         </div>
-
-        {usuario?.esta_bloqueado && (
-          <div className="header-bloqueo-banner">
-            <span>🔒</span>
-            <span>
-              Tu cuenta está bloqueada por <strong>{usuario.dias_bloqueo_restantes} día(s)</strong> más.
-            </span>
-            <button onClick={() => irA("/prestamos")} className="header-bloqueo-link">
-              Ver mis préstamos
-            </button>
-          </div>
-        )}
+        {/* ── Barra de bloqueo eliminada ── */}
       </header>
     </>
   );

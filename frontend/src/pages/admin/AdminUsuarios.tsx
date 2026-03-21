@@ -27,7 +27,6 @@ interface FormCrear {
   usuario_rol:      string;
 }
 
-// Sin usuario_rol ni usuario_password — no se editan
 interface FormEditar {
   usuario_nombre:   string;
   usuario_aPaterno: string;
@@ -51,6 +50,29 @@ type Modal =
   | { tipo: 'editar'; usuario: Usuario }
   | { tipo: 'eliminar'; usuario: Usuario };
 
+// ── Validaciones ─────────────────────────────────────────────
+const soloLetras = (valor: string) =>
+  /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/.test(valor.trim());
+
+const validarNombres = (
+  nombre: string,
+  aPaterno: string,
+  aMaterno: string
+): string => {
+  if (!nombre.trim())
+    return "El nombre es requerido.";
+  if (!soloLetras(nombre))
+    return "El nombre solo puede contener letras y espacios.";
+  if (!aPaterno.trim())
+    return "El apellido paterno es requerido.";
+  if (!soloLetras(aPaterno))
+    return "El apellido paterno solo puede contener letras y espacios.";
+  if (aMaterno && !soloLetras(aMaterno))
+    return "El apellido materno solo puede contener letras y espacios.";
+  return "";
+};
+// ─────────────────────────────────────────────────────────────
+
 export default function AdminUsuarios() {
   const [usuarios,   setUsuarios]   = useState<Usuario[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -60,6 +82,7 @@ export default function AdminUsuarios() {
   const [formEditar, setFormEditar] = useState<FormEditar>(FORM_EDITAR_VACIO);
   const [msg,        setMsg]        = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
   const [guardando,  setGuardando]  = useState(false);
+  const [errorModal, setErrorModal] = useState(''); // ← error dentro del modal
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -82,6 +105,7 @@ export default function AdminUsuarios() {
 
   const abrirCrear = () => {
     setFormCrear(FORM_CREAR_VACIO);
+    setErrorModal('');
     setModal({ tipo: 'crear' });
   };
 
@@ -93,10 +117,35 @@ export default function AdminUsuarios() {
       matricula_id:     u.matricula_id,
       usuario_email:    u.usuario_email,
     });
+    setErrorModal('');
     setModal({ tipo: 'editar', usuario: u });
   };
 
   const handleGuardar = async () => {
+    // ── Validar antes de enviar ──
+    if (modal?.tipo === 'crear') {
+      const err = validarNombres(
+        formCrear.usuario_nombre,
+        formCrear.usuario_aPaterno,
+        formCrear.usuario_aMaterno
+      );
+      if (err) { setErrorModal(err); return; }
+      if (formCrear.usuario_password.length < 6) {
+        setErrorModal("La contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
+    }
+
+    if (modal?.tipo === 'editar') {
+      const err = validarNombres(
+        formEditar.usuario_nombre,
+        formEditar.usuario_aPaterno,
+        formEditar.usuario_aMaterno
+      );
+      if (err) { setErrorModal(err); return; }
+    }
+    // ────────────────────────────
+
     setGuardando(true);
     try {
       if (modal?.tipo === 'crear') {
@@ -113,8 +162,9 @@ export default function AdminUsuarios() {
         mostrar('ok', 'Usuario actualizado correctamente');
       }
       setModal(null);
+      setErrorModal('');
       cargar();
-    } catch (e: any) { mostrar('err', e.message); }
+    } catch (e: any) { setErrorModal(e.message); }
     finally { setGuardando(false); }
   };
 
@@ -213,7 +263,7 @@ export default function AdminUsuarios() {
         </div>
       )}
 
-      {/* ── Modal Crear — con rol ── */}
+      {/* ── Modal Crear ── */}
       {modal?.tipo === 'crear' && (
         <div className="ausu-backdrop" onClick={() => setModal(null)}>
           <div className="ausu-modal" onClick={e => e.stopPropagation()}>
@@ -223,37 +273,37 @@ export default function AdminUsuarios() {
               <div className="ausu-form-group">
                 <label>Nombre(s)</label>
                 <input value={formCrear.usuario_nombre}
-                  onChange={e => setFormCrear({...formCrear, usuario_nombre: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, usuario_nombre: e.target.value}); setErrorModal(''); }}
                   placeholder="Nombre" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Paterno</label>
                 <input value={formCrear.usuario_aPaterno}
-                  onChange={e => setFormCrear({...formCrear, usuario_aPaterno: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, usuario_aPaterno: e.target.value}); setErrorModal(''); }}
                   placeholder="Apellido Paterno" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Materno</label>
                 <input value={formCrear.usuario_aMaterno}
-                  onChange={e => setFormCrear({...formCrear, usuario_aMaterno: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, usuario_aMaterno: e.target.value}); setErrorModal(''); }}
                   placeholder="Apellido Materno" />
               </div>
               <div className="ausu-form-group">
                 <label>Matrícula</label>
                 <input value={formCrear.matricula_id}
-                  onChange={e => setFormCrear({...formCrear, matricula_id: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, matricula_id: e.target.value}); setErrorModal(''); }}
                   placeholder="Matrícula" />
               </div>
               <div className="ausu-form-group ausu-span2">
                 <label>Correo electrónico</label>
                 <input type="email" value={formCrear.usuario_email}
-                  onChange={e => setFormCrear({...formCrear, usuario_email: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, usuario_email: e.target.value}); setErrorModal(''); }}
                   placeholder="correo@ejemplo.com" />
               </div>
               <div className="ausu-form-group">
                 <label>Contraseña inicial</label>
                 <input type="password" value={formCrear.usuario_password}
-                  onChange={e => setFormCrear({...formCrear, usuario_password: e.target.value})}
+                  onChange={e => { setFormCrear({...formCrear, usuario_password: e.target.value}); setErrorModal(''); }}
                   placeholder="••••••••" />
               </div>
               <div className="ausu-form-group">
@@ -265,6 +315,7 @@ export default function AdminUsuarios() {
                 </select>
               </div>
             </div>
+            {errorModal && <p className="ausu-modal-error">{errorModal}</p>}
             <div className="ausu-modal-btns">
               <button className="ausu-btn-guardar" onClick={handleGuardar} disabled={guardando}>
                 {guardando ? 'Guardando…' : 'Crear usuario'}
@@ -275,7 +326,7 @@ export default function AdminUsuarios() {
         </div>
       )}
 
-      {/* ── Modal Editar — SIN contraseña NI rol ── */}
+      {/* ── Modal Editar ── */}
       {modal?.tipo === 'editar' && (
         <div className="ausu-backdrop" onClick={() => setModal(null)}>
           <div className="ausu-modal" onClick={e => e.stopPropagation()}>
@@ -288,34 +339,35 @@ export default function AdminUsuarios() {
               <div className="ausu-form-group">
                 <label>Nombre(s)</label>
                 <input value={formEditar.usuario_nombre}
-                  onChange={e => setFormEditar({...formEditar, usuario_nombre: e.target.value})}
+                  onChange={e => { setFormEditar({...formEditar, usuario_nombre: e.target.value}); setErrorModal(''); }}
                   placeholder="Nombre" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Paterno</label>
                 <input value={formEditar.usuario_aPaterno}
-                  onChange={e => setFormEditar({...formEditar, usuario_aPaterno: e.target.value})}
+                  onChange={e => { setFormEditar({...formEditar, usuario_aPaterno: e.target.value}); setErrorModal(''); }}
                   placeholder="Apellido Paterno" />
               </div>
               <div className="ausu-form-group">
                 <label>Apellido Materno</label>
                 <input value={formEditar.usuario_aMaterno}
-                  onChange={e => setFormEditar({...formEditar, usuario_aMaterno: e.target.value})}
+                  onChange={e => { setFormEditar({...formEditar, usuario_aMaterno: e.target.value}); setErrorModal(''); }}
                   placeholder="Apellido Materno" />
               </div>
               <div className="ausu-form-group">
                 <label>Matrícula</label>
                 <input value={formEditar.matricula_id}
-                  onChange={e => setFormEditar({...formEditar, matricula_id: e.target.value})}
+                  onChange={e => { setFormEditar({...formEditar, matricula_id: e.target.value}); setErrorModal(''); }}
                   placeholder="Matrícula" />
               </div>
               <div className="ausu-form-group ausu-span2">
                 <label>Correo electrónico</label>
                 <input type="email" value={formEditar.usuario_email}
-                  onChange={e => setFormEditar({...formEditar, usuario_email: e.target.value})}
+                  onChange={e => { setFormEditar({...formEditar, usuario_email: e.target.value}); setErrorModal(''); }}
                   placeholder="correo@ejemplo.com" />
               </div>
             </div>
+            {errorModal && <p className="ausu-modal-error">{errorModal}</p>}
             <div className="ausu-modal-btns">
               <button className="ausu-btn-guardar" onClick={handleGuardar} disabled={guardando}>
                 {guardando ? 'Guardando…' : 'Guardar cambios'}

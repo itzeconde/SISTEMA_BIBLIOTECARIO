@@ -523,3 +523,8 @@
   font-size: 12px; color: var(--admin-muted);
   font-family: sans-serif; margin-top: 6px; line-height: 1.4;
 }
+.ausu-modal-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
