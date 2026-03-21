@@ -865,11 +865,6 @@ class AdminEditorialDetalleView(APIView):
         editorial.delete()
         return Response({'message': 'Editorial eliminada correctamente'})
 
-
-# ─────────────────────────────────────────
-# Recuperación de contraseña
-# ─────────────────────────────────────────
-
 class RecuperarPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -886,7 +881,6 @@ class RecuperarPasswordView(APIView):
             frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:5173')
             reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
 
-            # ── Envío de correo con Resend ──────────────────
             import os
             resend.api_key = os.environ.get("RESEND_API_KEY", "")
 
@@ -894,34 +888,16 @@ class RecuperarPasswordView(APIView):
                 "from": "Biblioteca <onboarding@resend.dev>",
                 "to": [usuario.usuario_email],
                 "subject": "Restablecer tu contraseña — Biblioteca",
-                "html": f"""
-                    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
-                        <h2 style="color: #4f46e5;">Restablecer contraseña</h2>
-                        <p>Hola <strong>{usuario.usuario_nombre}</strong>,</p>
-                        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
-                        <p>Haz clic en el siguiente enlace (válido por 1 hora):</p>
-                        <a href="{reset_link}"
-                           style="display:inline-block; padding:10px 20px; background:#4f46e5;
-                                  color:white; border-radius:6px; text-decoration:none;">
-                            Restablecer contraseña
-                        </a>
-                        <p style="margin-top:20px; color:#888;">
-                            Si no solicitaste esto, ignora este correo.
-                        </p>
-                        <p>— Biblioteca</p>
-                    </div>
-                """,
+                "html": f"<p>Hola {usuario.usuario_nombre}, tu enlace es: <a href='{reset_link}'>Restablecer contraseña</a></p>",
             })
-            # ───────────────────────────────────────────────
 
-        except Usuario.DoesNotExist:
-            pass  # No revelar si el email existe
+        except Exception as e:
+            # ← Temporal para ver el error exacto
+            return Response({'error': str(e)}, status=500)
 
         return Response({
             'message': 'Si el correo está registrado, recibirás un enlace en breve.'
         })
-
-
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
