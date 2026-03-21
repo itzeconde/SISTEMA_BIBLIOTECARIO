@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 from datetime import datetime, timedelta, date
 import jwt
+import resend  # ← NUEVO
 
 from .models import (
     Libro, Categoria, Editorial, Prestamo, Apartado, Multa, Usuario,
@@ -885,20 +886,34 @@ class RecuperarPasswordView(APIView):
             frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:5173')
             reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
 
-            send_mail(
-                subject='Restablecer tu contraseña — Biblioteca',
-                message=(
-                    f"Hola {usuario.usuario_nombre},\n\n"
-                    f"Recibimos una solicitud para restablecer tu contraseña.\n"
-                    f"Haz clic en el siguiente enlace (válido por 1 hora):\n\n"
-                    f"{reset_link}\n\n"
-                    f"Si no solicitaste esto, ignora este correo.\n\n"
-                    f"— Biblioteca"
-                ),
-                from_email=django_settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[usuario.usuario_email],
-                fail_silently=False,
-            )
+            # ── Envío de correo con Resend ──────────────────
+            import os
+            resend.api_key = os.environ.get("RESEND_API_KEY", "")
+
+            resend.Emails.send({
+                "from": "Biblioteca <onboarding@resend.dev>",
+                "to": [usuario.usuario_email],
+                "subject": "Restablecer tu contraseña — Biblioteca",
+                "html": f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
+                        <h2 style="color: #4f46e5;">Restablecer contraseña</h2>
+                        <p>Hola <strong>{usuario.usuario_nombre}</strong>,</p>
+                        <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+                        <p>Haz clic en el siguiente enlace (válido por 1 hora):</p>
+                        <a href="{reset_link}"
+                           style="display:inline-block; padding:10px 20px; background:#4f46e5;
+                                  color:white; border-radius:6px; text-decoration:none;">
+                            Restablecer contraseña
+                        </a>
+                        <p style="margin-top:20px; color:#888;">
+                            Si no solicitaste esto, ignora este correo.
+                        </p>
+                        <p>— Biblioteca</p>
+                    </div>
+                """,
+            })
+            # ───────────────────────────────────────────────
+
         except Usuario.DoesNotExist:
             pass  # No revelar si el email existe
 
