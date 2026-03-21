@@ -7,7 +7,8 @@ from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 from datetime import datetime, timedelta, date
 import jwt
-import resend  # ← NUEVO
+import requests  # ← para Brevo
+import os
 
 from .models import (
     Libro, Categoria, Editorial, Prestamo, Apartado, Multa, Usuario,
@@ -865,6 +866,11 @@ class AdminEditorialDetalleView(APIView):
         editorial.delete()
         return Response({'message': 'Editorial eliminada correctamente'})
 
+
+# ─────────────────────────────────────────
+# Recuperación de contraseña
+# ─────────────────────────────────────────
+
 class RecuperarPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -881,23 +887,51 @@ class RecuperarPasswordView(APIView):
             frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:5173')
             reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
 
-            import os
-            resend.api_key = os.environ.get("RESEND_API_KEY", "")
+            # ── Envío con Brevo ─────────────────────────────
+            brevo_api_key = os.environ.get("BREVO_API_KEY", "")
 
-            resend.Emails.send({
-                "from": "Biblioteca <onboarding@resend.dev>",
-                "to": [usuario.usuario_email],
-                "subject": "Restablecer tu contraseña — Biblioteca",
-                "html": f"<p>Hola {usuario.usuario_nombre}, tu enlace es: <a href='{reset_link}'>Restablecer contraseña</a></p>",
-            })
+            requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": brevo_api_key,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "sender": {
+                        "name": "Biblioteca Web",
+                        "email": "chelconde46@gmail.com"
+                    },
+                    "to": [{"email": usuario.usuario_email}],
+                    "subject": "Restablecer tu contraseña — Biblioteca",
+                    "htmlContent": f"""
+                        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: auto;">
+                            <h2 style="color: #4f46e5;">Restablecer contraseña</h2>
+                            <p>Hola <strong>{usuario.usuario_nombre}</strong>,</p>
+                            <p>Recibimos una solicitud para restablecer tu contraseña.</p>
+                            <p>Haz clic en el siguiente enlace (válido por 1 hora):</p>
+                            <a href="{reset_link}"
+                               style="display:inline-block; padding:10px 20px; background:#4f46e5;
+                                      color:white; border-radius:6px; text-decoration:none;">
+                                Restablecer contraseña
+                            </a>
+                            <p style="margin-top:20px; color:#888;">
+                                Si no solicitaste esto, ignora este correo.
+                            </p>
+                            <p>— Biblioteca Web</p>
+                        </div>
+                    """,
+                }
+            )
+            # ────────────────────────────────────────────────
 
-        except Exception as e:
-            # ← Temporal para ver el error exacto
-            return Response({'error': str(e)}, status=500)
+        except Usuario.DoesNotExist:
+            pass  # No revelar si el email existe
 
         return Response({
             'message': 'Si el correo está registrado, recibirás un enlace en breve.'
         })
+
+
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
