@@ -884,7 +884,7 @@ class RecuperarPasswordView(APIView):
             PasswordResetToken.objects.filter(usuario=usuario, usado=False).update(usado=True)
             token_obj = PasswordResetToken.objects.create(usuario=usuario)
 
-            frontend_url = getattr(django_settings, 'FRONTEND_URL', 'http://localhost:5173')
+            frontend_url = os.environ.get("FRONTEND_URL", "https://sistemaweb-bibliotecario.netlify.app")
             reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
 
             # ── Envío con Brevo ─────────────────────────────
