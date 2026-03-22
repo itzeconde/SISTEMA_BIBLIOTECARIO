@@ -14,7 +14,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     os.environ.get("RAILWAY_PUBLIC_DOMAIN", ""),
     ".railway.app",
-    ".netlify.app",
+    ".vercel.app",  # ← actualizado de .netlify.app
 ]
 ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
 
@@ -110,17 +110,13 @@ REST_FRAMEWORK = {
 }
 
 # ── CORS ───────────────────────────────────────────────────
-NETLIFY_URL = os.environ.get("NETLIFY_URL", "")
-
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:3000",
     "https://sistemaweb-bibliotecario.netlify.app",
+    "https://sistema-bibliotecario-six.vercel.app",  # ← agregado Vercel
 ]
-if NETLIFY_URL:
-    CORS_ALLOWED_ORIGINS.append(NETLIFY_URL)
-
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -130,4 +126,3 @@ CORS_ALLOW_HEADERS = [
     "content-type",
     "x-csrftoken",
 ]
-
