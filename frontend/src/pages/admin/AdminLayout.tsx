@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import './AdminLayout.css';
 
@@ -14,7 +15,7 @@ interface Usuario {
 }
 
 const NAV_ITEMS = [
-  { path: '/admin',           icon: '▦',  label: 'Dashboard'  },
+  { path: '/admin',           icon: '▦',  label: 'Panel'      },
   { path: '/admin/usuarios',  icon: '👥', label: 'Usuarios'   },
   { path: '/admin/libros',    icon: '📚', label: 'Libros'     },
   { path: '/admin/prestamos', icon: '📖', label: 'Préstamos'  },
@@ -28,10 +29,8 @@ export default function AdminLayout() {
 
   const usuario: Usuario | null = JSON.parse(localStorage.getItem('usuario') || 'null');
 
-  // ── Modal perfil ──────────────────────────────────────────────
   const [modalPerfil, setModalPerfil] = useState(false);
   const [tabPerfil,   setTabPerfil]   = useState<'info' | 'password'>('info');
-
   const [pwd, setPwd] = useState({ actual: '', nueva: '', confirmar: '' });
   const [pwdMsg, setPwdMsg] = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -59,7 +58,6 @@ export default function AdminLayout() {
       setPwdMsg({ tipo: 'err', texto: 'La nueva contraseña debe tener al menos 6 caracteres.' });
       return;
     }
-
     setGuardando(true);
     try {
       const r = await fetch(`${API}/admin/usuarios/${usuario?.usuario_id}/`, {
@@ -102,7 +100,7 @@ export default function AdminLayout() {
   return (
     <div className={`admin-layout ${collapsed ? 'collapsed' : ''}`}>
 
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (solo desktop/tablet) ── */}
       <aside className="admin-sidebar">
         <div className="admin-sidebar-top">
           <div className="admin-logo" onClick={() => navigate('/admin')}>
@@ -129,16 +127,6 @@ export default function AdminLayout() {
               {activo(item.path) && <span className="admin-nav-dot" />}
             </button>
           ))}
-
-          {/* Botón salir — visible solo en móvil */}
-          <button
-            className="admin-nav-item admin-nav-logout"
-            onClick={cerrarSesion}
-            title="Salir"
-          >
-            <span className="admin-nav-icon">⏻</span>
-            <span className="admin-nav-label">Salir</span>
-          </button>
         </nav>
 
         <div className="admin-sidebar-footer">
@@ -159,6 +147,30 @@ export default function AdminLayout() {
         </div>
       </aside>
 
+      {/* ── Nav móvil via Portal — se renderiza directo en document.body ── */}
+      {createPortal(
+        <nav className="admin-mobile-nav">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.path}
+              className={`admin-mobile-nav-item ${activo(item.path) ? 'active' : ''}`}
+              onClick={() => navigate(item.path)}
+            >
+              <span className="admin-mobile-nav-icon">{item.icon}</span>
+              <span className="admin-mobile-nav-label">{item.label}</span>
+            </button>
+          ))}
+          <button
+            className="admin-mobile-nav-item admin-mobile-nav-logout"
+            onClick={cerrarSesion}
+          >
+            <span className="admin-mobile-nav-icon">⏻</span>
+            <span className="admin-mobile-nav-label">Salir</span>
+          </button>
+        </nav>,
+        document.body
+      )}
+
       {/* ── Contenido ── */}
       <main className="admin-main">
         <Outlet />
@@ -169,7 +181,6 @@ export default function AdminLayout() {
         <div className="perfil-backdrop" onClick={() => setModalPerfil(false)}>
           <div className="perfil-modal" onClick={e => e.stopPropagation()}>
 
-            {/* Header */}
             <div className="perfil-header">
               <div className="perfil-avatar">{iniciales}</div>
               <div className="perfil-header-info">
@@ -179,7 +190,6 @@ export default function AdminLayout() {
               <button className="perfil-close" onClick={() => setModalPerfil(false)}>✕</button>
             </div>
 
-            {/* Tabs */}
             <div className="perfil-tabs">
               <button
                 className={`perfil-tab ${tabPerfil === 'info' ? 'active' : ''}`}
@@ -195,7 +205,6 @@ export default function AdminLayout() {
               </button>
             </div>
 
-            {/* Tab: Info */}
             {tabPerfil === 'info' && usuario && (
               <div className="perfil-body">
                 <div className="perfil-campo">
@@ -223,7 +232,6 @@ export default function AdminLayout() {
               </div>
             )}
 
-            {/* Tab: Contraseña */}
             {tabPerfil === 'password' && (
               <div className="perfil-body">
                 {pwdMsg && (

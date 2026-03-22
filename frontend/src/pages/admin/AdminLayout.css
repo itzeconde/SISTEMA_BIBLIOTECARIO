@@ -149,11 +149,6 @@
   flex-shrink: 0;
 }
 
-/* Botón salir en nav — oculto en desktop */
-.admin-nav-logout {
-  display: none;
-}
-
 /* Footer */
 .admin-sidebar-footer {
   border-top: 1px solid var(--admin-border);
@@ -163,7 +158,6 @@
   gap: 8px;
 }
 
-/* User info — ahora es un botón clickeable */
 .admin-user-info {
   display: flex;
   align-items: center;
@@ -250,6 +244,11 @@
   margin-left: var(--admin-sidebar-w-col);
 }
 
+/* ── Nav móvil — oculto en desktop ───────── */
+.admin-mobile-nav {
+  display: none;
+}
+
 /* ════════════════════════════════════════════
    MODAL PERFIL
    ════════════════════════════════════════════ */
@@ -282,7 +281,6 @@
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* Header del modal */
 .perfil-header {
   display: flex;
   align-items: center;
@@ -333,7 +331,6 @@
   background: var(--admin-border);
 }
 
-/* Tabs */
 .perfil-tabs {
   display: flex;
   border-bottom: 1px solid var(--admin-border);
@@ -356,7 +353,6 @@
   border-bottom-color: var(--admin-accent);
 }
 
-/* Body */
 .perfil-body {
   padding: 20px 24px 24px;
   display: flex;
@@ -364,7 +360,6 @@
   gap: 14px;
 }
 
-/* Campos de datos */
 .perfil-campo {
   display: flex;
   flex-direction: column;
@@ -402,7 +397,6 @@
   border: 1px solid rgba(59,76,202,0.3);
 }
 
-/* Formulario contraseña */
 .perfil-form-group {
   display: flex; flex-direction: column; gap: 6px;
 }
@@ -447,7 +441,6 @@
   opacity: 0.6; cursor: not-allowed;
 }
 
-/* Notificación */
 .perfil-msg {
   padding: 10px 14px;
   border-radius: 8px;
@@ -492,96 +485,86 @@
    RESPONSIVE MÓVIL (≤ 767px)
    ════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  .admin-layout { flex-direction: column; }
 
+  /* Ocultar sidebar completo en móvil */
   .admin-sidebar {
-    width: 100% !important;
-    height: 60px !important;
+    display: none !important;
+  }
+
+  /* Main ocupa todo el ancho */
+  .admin-main {
+    margin-left: 0 !important;
+    padding-bottom: 70px !important;
+    min-height: 100vh !important;
+  }
+
+  .admin-layout.collapsed .admin-main {
+    margin-left: 0 !important;
+  }
+
+  /* Nav móvil visible y fijo abajo */
+  .admin-mobile-nav {
+    display: flex !important;
     position: fixed !important;
-    top: unset !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    flex-direction: row !important;
-    border-right: none;
+    height: 60px !important;
+    background: var(--admin-sidebar-bg);
     border-top: 1px solid var(--admin-border);
-    overflow: visible;
-    z-index: 999 !important;
-  }
-  .admin-sidebar-top,
-  .admin-sidebar-label,
-  .admin-sidebar-footer { display: none !important; }
-
-  .admin-nav {
-    flex-direction: row !important;
-    padding: 0 !important;
-    gap: 0 !important;
-    overflow-x: auto;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
+    z-index: 9999;
+    flex-direction: row;
     align-items: stretch;
-    width: 100%;
-    height: 60px;
   }
 
-  .admin-nav-item {
+  .admin-mobile-nav-item {
     flex: 1;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 3px !important;
-    padding: 6px 4px !important;
-    border-radius: 0 !important;
-    min-width: 56px;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border: none;
     border-top: 2px solid transparent;
-    white-space: normal;
-  }
-
-  .admin-nav-icon { font-size: 20px !important; }
-
-  .admin-nav-label {
-    display: block !important;
-    font-size: 10px !important;
-    line-height: 1 !important;
-    flex: none !important;
+    background: none;
     color: var(--admin-muted);
+    cursor: pointer;
+    font-family: sans-serif;
+    min-width: 0;
+    transition: background 0.15s, color 0.15s;
   }
 
-  .admin-nav-dot { display: none !important; }
-
-  .admin-nav-item.active {
-    background: var(--admin-accent-soft) !important;
-    color: #fff !important;
-    border-top-color: var(--admin-accent) !important;
+  .admin-mobile-nav-item.active {
+    background: var(--admin-accent-soft);
+    color: #fff;
+    border-top-color: var(--admin-accent);
   }
 
-  .admin-nav-item.active .admin-nav-label {
-    color: #fff !important;
+  .admin-mobile-nav-item.active .admin-mobile-nav-label {
+    color: #fff;
   }
 
-  /* Botón salir visible en móvil */
-  .admin-nav-logout {
-    display: flex !important;
+  .admin-mobile-nav-icon {
+    font-size: 20px;
+    line-height: 1;
   }
 
-  .admin-nav-logout:hover {
-    background: rgba(239, 68, 68, 0.12) !important;
-    color: var(--admin-danger) !important;
+  .admin-mobile-nav-label {
+    font-size: 9px;
+    color: var(--admin-muted);
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
-  .admin-nav-logout .admin-nav-label {
-    color: var(--admin-muted) !important;
+  .admin-mobile-nav-logout:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--admin-danger);
   }
-
-  .admin-main {
-    margin-left: 0 !important;
-    padding-bottom: 60px !important;
-    min-height: calc(100vh - 60px) !important;
-  }
-
-  .admin-layout.collapsed .admin-sidebar { width: 100% !important; }
-  .admin-layout.collapsed .admin-main    { margin-left: 0 !important; }
 
   /* Modal perfil en móvil */
   .perfil-modal {
