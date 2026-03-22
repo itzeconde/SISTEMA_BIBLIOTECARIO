@@ -129,6 +129,16 @@ export default function AdminLayout() {
               {activo(item.path) && <span className="admin-nav-dot" />}
             </button>
           ))}
+
+          {/* Botón salir — visible solo en móvil */}
+          <button
+            className="admin-nav-item admin-nav-logout"
+            onClick={cerrarSesion}
+            title="Salir"
+          >
+            <span className="admin-nav-icon">⏻</span>
+            <span className="admin-nav-label">Salir</span>
+          </button>
         </nav>
 
         <div className="admin-sidebar-footer">

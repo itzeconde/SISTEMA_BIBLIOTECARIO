@@ -102,16 +102,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Alerta si hay vencidos o multas */}
-      {stats && (stats.prestamos_vencidos > 0 || stats.multas_activas > 0) && (
-        <div className="adash-alerta">
-          <span className="adash-alerta-dot" />
-          <span>
-            Hay <strong>{stats.prestamos_vencidos}</strong> préstamo(s) vencido(s)
-            y <strong>{stats.multas_activas}</strong> multa(s) activa(s) que requieren atención.
-          </span>
-        </div>
-      )}
 
       {loading ? (
         <div className="adash-loading">
