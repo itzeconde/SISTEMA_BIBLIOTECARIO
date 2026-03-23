@@ -13,11 +13,10 @@ interface FormRegistro {
 
 const detectarTipo = (valor: string): "alumno" | "maestro" | null => {
   if (/^\d{1,3}$/.test(valor) && valor.length <= 3) return "maestro";
-  if (/^\d{4}[A-Z]{1,}[A-Z0-9]*\d+$/.test(valor)) return "alumno";
+  if (/^\d{4,5}[A-Z]+\d+$/.test(valor)) return "alumno";
   return null;
 };
 
-// ── Validación: solo letras, espacios y acentos ──────────────
 const soloLetras = (valor: string) =>
   /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/.test(valor.trim());
 
@@ -32,7 +31,25 @@ const validarForm = (form: FormRegistro): string => {
     return "La contraseña debe tener al menos 6 caracteres.";
   return "";
 };
-// ─────────────────────────────────────────────────────────────
+
+// Ícono ojo abierto
+const IconoOjo = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+// Ícono ojo tachado
+const IconoOjoOculto = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -58,7 +75,6 @@ export default function Registro() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ── Validar campos antes de enviar ──
     const mensajeError = validarForm(form);
     if (mensajeError) { setError(mensajeError); return; }
 
@@ -168,7 +184,7 @@ export default function Registro() {
                 <input
                   className={`form-input ${
                     form.matricula_id
-                      ? detectarTipo(form.matricula_id) === "alumno" ? "form-input--alumno"
+                      ? detectarTipo(form.matricula_id) === "alumno"  ? "form-input--alumno"
                         : detectarTipo(form.matricula_id) === "maestro" ? "form-input--maestro"
                         : "form-input--invalido"
                       : ""
@@ -189,7 +205,7 @@ export default function Registro() {
               <span className="form-hint">Lo usarás para recuperar tu contraseña</span>
             </div>
 
-            {/* Contraseña con ver/ocultar */}
+            {/* Contraseña con toggle SVG igual al Login */}
             <div className="form-group">
               <label className="form-label">Contraseña</label>
               <div className="input-password-wrap">
@@ -208,8 +224,9 @@ export default function Registro() {
                   className="btn-ver-password"
                   onClick={() => setVerPassword(!verPassword)}
                   tabIndex={-1}
+                  aria-label={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {verPassword ? "🙈" : "👁️"}
+                  {verPassword ? <IconoOjoOculto /> : <IconoOjo />}
                 </button>
               </div>
             </div>
@@ -257,22 +274,16 @@ export default function Registro() {
             <div className="terminos-modal-body">
               <h3>1. Uso del sistema</h3>
               <p>El sistema de biblioteca es de uso exclusivo para alumnos y personal activo de la institución. El acceso es personal e intransferible.</p>
-
               <h3>2. Préstamos</h3>
               <p>Cada usuario puede tener hasta 3 préstamos activos simultáneamente. Los plazos disponibles son de 3, 5 o 7 días hábiles según lo seleccionado al momento del préstamo.</p>
-
               <h3>3. Devoluciones</h3>
               <p>Los libros deben devolverse en la fecha acordada. El retraso en la devolución generará un bloqueo temporal de la cuenta equivalente a los días de retraso.</p>
-
               <h3>4. Apartados</h3>
               <p>Es posible apartar hasta 3 libros simultáneamente. Un apartado asignado debe recogerse dentro del plazo establecido, de lo contrario será cancelado automáticamente.</p>
-
               <h3>5. Responsabilidad</h3>
               <p>El usuario es responsable del buen estado de los libros prestados. Cualquier daño o pérdida deberá ser reportado de inmediato al personal de la biblioteca.</p>
-
               <h3>6. Privacidad</h3>
               <p>Los datos personales proporcionados durante el registro serán utilizados únicamente para la gestión de préstamos y comunicaciones relacionadas con el servicio de biblioteca.</p>
-
               <h3>7. Correo electrónico</h3>
               <p>El correo registrado será utilizado exclusivamente para el envío de notificaciones del sistema, como la recuperación de contraseña. No será compartido con terceros.</p>
             </div>

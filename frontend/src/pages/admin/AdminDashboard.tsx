@@ -5,7 +5,8 @@ import './AdminDashboard.css';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 interface Stats {
-  total_usuarios:     number;
+  total_alumnos:      number;
+  total_docentes:     number;
   total_libros:       number;
   prestamos_activos:  number;
   prestamos_vencidos: number;
@@ -76,12 +77,13 @@ export default function AdminDashboard() {
   const horaStr = hora.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const cards = stats ? [
-    { label: 'Usuarios registrados', value: stats.total_usuarios,     icon: '👥', accent: '#60a5fa', sublabel: 'en el sistema' },
-    { label: 'Libros en catálogo',   value: stats.total_libros,       icon: '📚', accent: '#a78bfa', sublabel: 'disponibles' },
-    { label: 'Préstamos activos',    value: stats.prestamos_activos,  icon: '📖', accent: '#34d399', sublabel: 'en circulación' },
-    { label: 'Préstamos vencidos',   value: stats.prestamos_vencidos, icon: '⚠️', accent: '#f87171', sublabel: 'requieren atención' },
-    { label: 'Apartados activos',    value: stats.apartados_activos,  icon: '🔖', accent: '#fbbf24', sublabel: 'pendientes de recogida' },
-    { label: 'Multas activas',       value: stats.multas_activas,     icon: '🔒', accent: '#fb923c', sublabel: 'usuarios bloqueados' },
+    { label: 'Alumnos registrados', value: stats.total_alumnos,      icon: '🎓', accent: '#60a5fa', sublabel: 'en el sistema' },
+    { label: 'Docentes registrados', value: stats.total_docentes,    icon: '👨‍🏫', accent: '#818cf8', sublabel: 'en el sistema' },
+    { label: 'Libros en catálogo',   value: stats.total_libros,      icon: '📚', accent: '#a78bfa', sublabel: 'disponibles' },
+    { label: 'Préstamos activos',    value: stats.prestamos_activos, icon: '📖', accent: '#34d399', sublabel: 'en circulación' },
+    { label: 'Préstamos vencidos',   value: stats.prestamos_vencidos,icon: '⚠️', accent: '#f87171', sublabel: 'requieren atención' },
+    { label: 'Apartados activos',    value: stats.apartados_activos, icon: '🔖', accent: '#fbbf24', sublabel: 'pendientes de recogida' },
+    { label: 'Multas activas',       value: stats.multas_activas,    icon: '🔒', accent: '#fb923c', sublabel: 'usuarios bloqueados' },
   ] : [];
 
   const total = stats ? stats.prestamos_activos + stats.prestamos_vencidos + stats.apartados_activos : 0;
@@ -101,7 +103,6 @@ export default function AdminDashboard() {
           <div className="adash-clock-date">{fecha}</div>
         </div>
       </div>
-
 
       {loading ? (
         <div className="adash-loading">

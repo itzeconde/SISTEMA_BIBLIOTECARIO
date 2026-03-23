@@ -143,3 +143,30 @@
 .login-link:hover { color: var(--blue-dark); }
 
 @media (max-width: 480px) { .login-panel-form { padding: 32px 20px; } }
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-wrap .form-input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.login-toggle-pass {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.login-toggle-pass:hover {
+  color: var(--blue);
+}

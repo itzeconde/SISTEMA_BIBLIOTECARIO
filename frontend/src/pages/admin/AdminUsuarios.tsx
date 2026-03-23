@@ -11,7 +11,7 @@ interface Usuario {
   usuario_aMaterno:        string;
   matricula_id:            string;
   usuario_email:           string;
-  usuario_rol:             string;
+  usuario_rol:             string;  // 'alumno' | 'docente'
   usuario_bloqueado_hasta: string | null;
   esta_bloqueado:          boolean;
   dias_bloqueo_restantes:  number;
@@ -24,7 +24,7 @@ interface FormCrear {
   matricula_id:     string;
   usuario_email:    string;
   usuario_password: string;
-  usuario_rol:      string;
+  // usuario_rol NO se incluye — el backend lo detecta automáticamente
 }
 
 interface FormEditar {
@@ -37,7 +37,7 @@ interface FormEditar {
 
 const FORM_CREAR_VACIO: FormCrear = {
   usuario_nombre: '', usuario_aPaterno: '', usuario_aMaterno: '',
-  matricula_id: '', usuario_email: '', usuario_password: '', usuario_rol: 'usuario',
+  matricula_id: '', usuario_email: '', usuario_password: '',
 };
 
 const FORM_EDITAR_VACIO: FormEditar = {
@@ -54,22 +54,21 @@ type Modal =
 const soloLetras = (valor: string) =>
   /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/.test(valor.trim());
 
-const validarNombres = (
-  nombre: string,
-  aPaterno: string,
-  aMaterno: string
-): string => {
-  if (!nombre.trim())
-    return "El nombre es requerido.";
-  if (!soloLetras(nombre))
-    return "El nombre solo puede contener letras y espacios.";
-  if (!aPaterno.trim())
-    return "El apellido paterno es requerido.";
-  if (!soloLetras(aPaterno))
-    return "El apellido paterno solo puede contener letras y espacios.";
+const validarNombres = (nombre: string, aPaterno: string, aMaterno: string): string => {
+  if (!nombre.trim())        return "El nombre es requerido.";
+  if (!soloLetras(nombre))   return "El nombre solo puede contener letras y espacios.";
+  if (!aPaterno.trim())      return "El apellido paterno es requerido.";
+  if (!soloLetras(aPaterno)) return "El apellido paterno solo puede contener letras y espacios.";
   if (aMaterno && !soloLetras(aMaterno))
     return "El apellido materno solo puede contener letras y espacios.";
   return "";
+};
+
+// Detecta el rol visualmente según el formato de la matrícula
+const detectarRolTexto = (matricula: string): string => {
+  if (/^\d{3}$/.test(matricula))           return 'docente';
+  if (/^\d{4,5}[A-Z]+\d+$/.test(matricula)) return 'alumno';
+  return '';
 };
 // ─────────────────────────────────────────────────────────────
 
@@ -82,7 +81,7 @@ export default function AdminUsuarios() {
   const [formEditar, setFormEditar] = useState<FormEditar>(FORM_EDITAR_VACIO);
   const [msg,        setMsg]        = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
   const [guardando,  setGuardando]  = useState(false);
-  const [errorModal, setErrorModal] = useState(''); // ← error dentro del modal
+  const [errorModal, setErrorModal] = useState('');
 
   const token   = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -122,7 +121,6 @@ export default function AdminUsuarios() {
   };
 
   const handleGuardar = async () => {
-    // ── Validar antes de enviar ──
     if (modal?.tipo === 'crear') {
       const err = validarNombres(
         formCrear.usuario_nombre,
@@ -132,6 +130,11 @@ export default function AdminUsuarios() {
       if (err) { setErrorModal(err); return; }
       if (formCrear.usuario_password.length < 6) {
         setErrorModal("La contraseña debe tener al menos 6 caracteres.");
+        return;
+      }
+      const rolDetectado = detectarRolTexto(formCrear.matricula_id.toUpperCase());
+      if (!rolDetectado) {
+        setErrorModal("Formato de matrícula no válido. Alumno: 20242TIDSM059 | Docente: 059 (3 dígitos)");
         return;
       }
     }
@@ -144,7 +147,6 @@ export default function AdminUsuarios() {
       );
       if (err) { setErrorModal(err); return; }
     }
-    // ────────────────────────────
 
     setGuardando(true);
     try {
@@ -187,6 +189,9 @@ export default function AdminUsuarios() {
   const fc = (f: string) =>
     new Date(f + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  // Rol detectado en tiempo real mientras el admin escribe la matrícula
+  const rolDetectadoCrear = detectarRolTexto(formCrear.matricula_id.toUpperCase());
+
   return (
     <div className="ausu-page">
       <div className="ausu-header">
@@ -219,7 +224,7 @@ export default function AdminUsuarios() {
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Matrícula</th>
+                <th>Matrícula / N° Trabajador</th>
                 <th>Correo</th>
                 <th>Rol</th>
                 <th>Estatus</th>
@@ -240,7 +245,11 @@ export default function AdminUsuarios() {
                   </td>
                   <td className="td-muted">{u.matricula_id}</td>
                   <td className="td-muted">{u.usuario_email}</td>
-                  <td><span className={`ausu-pill rol-${u.usuario_rol}`}>{u.usuario_rol}</span></td>
+                  <td>
+                    <span className={`ausu-pill rol-${u.usuario_rol}`}>
+                      {u.usuario_rol === 'alumno' ? '🎓 Alumno' : '👨‍🏫 Docente'}
+                    </span>
+                  </td>
                   <td>
                     {u.esta_bloqueado
                       ? <span className="ausu-pill bloqueado">🔒 Bloqueado</span>
@@ -286,13 +295,23 @@ export default function AdminUsuarios() {
                 <label>Apellido Materno</label>
                 <input value={formCrear.usuario_aMaterno}
                   onChange={e => { setFormCrear({...formCrear, usuario_aMaterno: e.target.value}); setErrorModal(''); }}
-                  placeholder="Apellido Materno" />
+                  placeholder="Apellido Materno (opcional)" />
               </div>
               <div className="ausu-form-group">
-                <label>Matrícula</label>
-                <input value={formCrear.matricula_id}
+                <label>Matrícula / N° Trabajador</label>
+                <input
+                  value={formCrear.matricula_id}
                   onChange={e => { setFormCrear({...formCrear, matricula_id: e.target.value}); setErrorModal(''); }}
-                  placeholder="Matrícula" />
+                  placeholder="Ej. 20242TIDSM059 o 059"
+                />
+                {/* Rol detectado en tiempo real */}
+                {formCrear.matricula_id && (
+                  <span style={{ fontSize: 12, marginTop: 4, color: rolDetectadoCrear ? '#34d399' : '#f87171' }}>
+                    {rolDetectadoCrear
+                      ? `Rol detectado: ${rolDetectadoCrear === 'alumno' ? '🎓 Alumno' : '👨‍🏫 Docente'}`
+                      : '⚠️ Formato no válido'}
+                  </span>
+                )}
               </div>
               <div className="ausu-form-group ausu-span2">
                 <label>Correo electrónico</label>
@@ -300,19 +319,11 @@ export default function AdminUsuarios() {
                   onChange={e => { setFormCrear({...formCrear, usuario_email: e.target.value}); setErrorModal(''); }}
                   placeholder="correo@ejemplo.com" />
               </div>
-              <div className="ausu-form-group">
+              <div className="ausu-form-group ausu-span2">
                 <label>Contraseña inicial</label>
                 <input type="password" value={formCrear.usuario_password}
                   onChange={e => { setFormCrear({...formCrear, usuario_password: e.target.value}); setErrorModal(''); }}
                   placeholder="••••••••" />
-              </div>
-              <div className="ausu-form-group">
-                <label>Rol</label>
-                <select value={formCrear.usuario_rol}
-                  onChange={e => setFormCrear({...formCrear, usuario_rol: e.target.value})}>
-                  <option value="usuario">Usuario</option>
-                  <option value="admin">Admin</option>
-                </select>
               </div>
             </div>
             {errorModal && <p className="ausu-modal-error">{errorModal}</p>}
@@ -333,7 +344,7 @@ export default function AdminUsuarios() {
             <button className="ausu-modal-x" onClick={() => setModal(null)}>✕</button>
             <h2 className="ausu-modal-title">Editar usuario</h2>
             <p className="ausu-modal-nota">
-              🔒 La contraseña y el rol no pueden modificarse desde aquí.
+              🔒 La contraseña no puede modificarse desde aquí. El rol se actualiza automáticamente si cambias la matrícula.
             </p>
             <div className="ausu-form-grid">
               <div className="ausu-form-group">
@@ -352,13 +363,13 @@ export default function AdminUsuarios() {
                 <label>Apellido Materno</label>
                 <input value={formEditar.usuario_aMaterno}
                   onChange={e => { setFormEditar({...formEditar, usuario_aMaterno: e.target.value}); setErrorModal(''); }}
-                  placeholder="Apellido Materno" />
+                  placeholder="Apellido Materno (opcional)" />
               </div>
               <div className="ausu-form-group">
-                <label>Matrícula</label>
+                <label>Matrícula / N° Trabajador</label>
                 <input value={formEditar.matricula_id}
                   onChange={e => { setFormEditar({...formEditar, matricula_id: e.target.value}); setErrorModal(''); }}
-                  placeholder="Matrícula" />
+                  placeholder="Ej. 20242TIDSM059 o 059" />
               </div>
               <div className="ausu-form-group ausu-span2">
                 <label>Correo electrónico</label>

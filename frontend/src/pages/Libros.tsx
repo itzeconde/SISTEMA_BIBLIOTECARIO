@@ -1,4 +1,3 @@
-// src/pages/Libros.tsx
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { getLibros, getCategorias, crearApartado, crearPrestamo, type Libro, type Categoria } from "../services/api"
@@ -11,7 +10,10 @@ interface ModalApartado {
   tipo: 'apartar' | 'prestar'
 }
 
-// ── Paleta de colores para portadas generadas ──
+interface ModalDetalle {
+  libro: Libro
+}
+
 const COVER_PALETTES = [
   { bg: ['#1e3a5f', '#2d6a9f'], text: '#e8f4fd' },
   { bg: ['#2d1b4e', '#6b35a0'], text: '#f0e8ff' },
@@ -31,7 +33,6 @@ const getPalette = (titulo: string) => {
 const abreviar = (txt: string, max: number) =>
   txt.length > max ? txt.slice(0, max).trim() + '…' : txt
 
-// ── Componente de portada ──
 function BookCover({ libro, size = 'md' }: { libro: Libro; size?: 'sm' | 'md' | 'lg' }) {
   const [imgOk, setImgOk] = useState<boolean | null>(null)
   const palette = getPalette(libro.libro_titulo)
@@ -54,7 +55,6 @@ function BookCover({ libro, size = 'md' }: { libro: Libro; size?: 'sm' | 'md' | 
           onError={() => setImgOk(false)}
         />
       )}
-
       {(imgOk === false || !coverUrl) && (
         <div
           className="book-cover-generated"
@@ -76,7 +76,6 @@ function BookCover({ libro, size = 'md' }: { libro: Libro; size?: 'sm' | 'md' | 
           <div className="bcg-bottom-bar" style={{ background: palette.bg[0] + 'aa' }} />
         </div>
       )}
-
       {coverUrl && imgOk === null && (
         <div className="book-cover-shimmer" />
       )}
@@ -88,17 +87,18 @@ export default function Libros() {
   const navigate       = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const [libros,       setLibros]     = useState<Libro[]>([])
-  const [categorias,   setCategorias] = useState<Categoria[]>([])
-  const [busqueda,     setBusqueda]   = useState(searchParams.get("busqueda") || "")
-  const [categoria,    setCategoria]  = useState("")
-  const [cargando,     setCargando]   = useState(true)
-  const [error,        setError]      = useState("")
-  const [modal,        setModal]      = useState<ModalApartado | null>(null)
-  const [accionando,   setAccionando] = useState(false)
-  const [msg,          setMsg]        = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null)
-  const [diasPrestamo, setDiasPrestamo] = useState<3 | 5 | 7>(7)
-  const [pagina,       setPagina]     = useState(1)
+  const [libros,        setLibros]       = useState<Libro[]>([])
+  const [categorias,    setCategorias]   = useState<Categoria[]>([])
+  const [busqueda,      setBusqueda]     = useState(searchParams.get("busqueda") || "")
+  const [categoria,     setCategoria]    = useState("")
+  const [cargando,      setCargando]     = useState(true)
+  const [error,         setError]        = useState("")
+  const [modal,         setModal]        = useState<ModalApartado | null>(null)
+  const [modalDetalle,  setModalDetalle] = useState<ModalDetalle | null>(null)
+  const [accionando,    setAccionando]   = useState(false)
+  const [msg,           setMsg]          = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null)
+  const [diasPrestamo,  setDiasPrestamo] = useState<3 | 5 | 7>(7)
+  const [pagina,        setPagina]       = useState(1)
 
   const usuario = JSON.parse(localStorage.getItem("usuario") || "null")
 
@@ -126,7 +126,7 @@ export default function Libros() {
     setAccionando(true)
     try {
       await crearApartado(modal.libro.libro_id)
-      mostrar('ok', `"${modal.libro.libro_titulo}" apartado correctamente. El sistema tiene hasta 5 días para asignártelo y luego tendrás 3 días para recogerlo.`)
+      mostrar('ok', `"${modal.libro.libro_titulo}" apartado correctamente.`)
       setModal(null)
       getLibros(busqueda, categoria).then(setLibros)
     } catch (e: any) {
@@ -159,6 +159,7 @@ export default function Libros() {
     if (!usuario) { navigate("/login"); return }
     setDiasPrestamo(7)
     setModal({ libro, tipo })
+    setModalDetalle(null)
   }
 
   const totalPaginas = Math.ceil(libros.length / POR_PAGINA)
@@ -172,7 +173,7 @@ export default function Libros() {
   return (
     <div className="libros-page" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-      {/* ── Hero ── */}
+      {/* Hero */}
       <div className="libros-hero">
         <div className="libros-hero-content">
           <div className="libros-breadcrumb">Biblioteca WEB / Catálogo</div>
@@ -192,14 +193,13 @@ export default function Libros() {
         </div>
       </div>
 
-      {/* Notif */}
       {msg && (
         <div className={`libros-notif ${msg.tipo}`}>
           {msg.tipo === 'ok' ? '✓' : '⚠'} {msg.texto}
         </div>
       )}
 
-      {/* ── Filtros ── */}
+      {/* Filtros */}
       <div className="libros-filtros-wrap">
         <div className="libros-filtros">
           <div className="filtro-search-wrap">
@@ -240,7 +240,7 @@ export default function Libros() {
         </div>
       </div>
 
-      {/* ── Contenido ── */}
+      {/* Contenido */}
       <div className="libros-content" style={{ flex: 1 }}>
         {error && (
           <div className="libros-error-state">
@@ -268,21 +268,32 @@ export default function Libros() {
               {librosPagina.map(libro => (
                 <div key={libro.libro_id} className="libro-card">
 
-                  {/* ── Portada ── */}
-                  <div className="libro-cover-wrap">
+                  {/* Portada clickeable */}
+                  <div
+                    className="libro-cover-wrap"
+                    onClick={() => setModalDetalle({ libro })}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <BookCover libro={libro} size="md" />
                     <span className={`libro-badge ${libro.libro_ejemplares > 0 ? "disponible" : "agotado"}`}>
                       {libro.libro_ejemplares > 0 ? `${libro.libro_ejemplares} disponibles` : "Agotado"}
                     </span>
+                    {/* Overlay al hover */}
+                    <div className="libro-cover-overlay">
+                      <span className="libro-cover-overlay-txt">Ver descripción</span>
+                    </div>
                   </div>
 
                   <div className="libro-body">
                     <span className="libro-categoria">{libro.categoria_nombre}</span>
-                    <p className="libro-titulo">{libro.libro_titulo}</p>
+                    <p
+                      className="libro-titulo"
+                      onClick={() => setModalDetalle({ libro })}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {libro.libro_titulo}
+                    </p>
                     <p className="libro-autor">{libro.libro_autor}</p>
-                    {libro.libro_descripcion && (
-                      <p className="libro-desc">{libro.libro_descripcion}</p>
-                    )}
                     <p className="libro-isbn">ISBN: {libro.libro_isbn}</p>
                   </div>
 
@@ -339,13 +350,83 @@ export default function Libros() {
         )}
       </div>
 
-      {/* ══ MODAL ══ */}
+      {/* ══ MODAL DETALLE DEL LIBRO ══ */}
+      {modalDetalle && (
+        <div className="libros-backdrop" onClick={() => setModalDetalle(null)}>
+          <div className="libros-modal libros-modal-detalle" onClick={e => e.stopPropagation()}>
+            <button className="libros-modal-x" onClick={() => setModalDetalle(null)}>✕</button>
+
+            {/* Portada grande */}
+            <div className="libros-modal-cover">
+              <BookCover libro={modalDetalle.libro} size="lg" />
+            </div>
+
+            {/* Badges */}
+            <div className="libros-detalle-badges">
+              {modalDetalle.libro.categoria_nombre && (
+                <span className="libros-detalle-badge categoria">{modalDetalle.libro.categoria_nombre}</span>
+              )}
+              <span className={`libros-detalle-badge ${modalDetalle.libro.libro_ejemplares > 0 ? 'disponible' : 'agotado'}`}>
+                {modalDetalle.libro.libro_ejemplares > 0
+                  ? `${modalDetalle.libro.libro_ejemplares} disponibles`
+                  : 'Agotado'}
+              </span>
+            </div>
+
+            <h2 className="libros-modal-titulo">{modalDetalle.libro.libro_titulo}</h2>
+            <p className="libros-modal-autor">{modalDetalle.libro.libro_autor}</p>
+            <p className="libros-detalle-isbn">ISBN: {modalDetalle.libro.libro_isbn}</p>
+
+            {/* Descripción completa */}
+            {modalDetalle.libro.libro_descripcion ? (
+              <div className="libros-detalle-desc">
+                <p className="libros-detalle-desc-label">Descripción</p>
+                <p className="libros-detalle-desc-texto">{modalDetalle.libro.libro_descripcion}</p>
+              </div>
+            ) : (
+              <div className="libros-detalle-desc">
+                <p className="libros-detalle-desc-texto" style={{ fontStyle: 'italic' }}>
+                  Sin descripción disponible.
+                </p>
+              </div>
+            )}
+
+            {/* Botones de acción */}
+            <div className="libros-modal-btns" style={{ marginTop: 20 }}>
+              {modalDetalle.libro.libro_ejemplares > 0 ? (
+                <>
+                  <button
+                    className="libros-btn-confirmar"
+                    onClick={() => abrirModal(modalDetalle.libro, 'prestar')}
+                  >
+                    Solicitar préstamo
+                  </button>
+                  <button
+                    className="libros-btn-cancel"
+                    onClick={() => abrirModal(modalDetalle.libro, 'apartar')}
+                  >
+                    🔖 Apartar
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="libros-btn-confirmar"
+                  onClick={() => abrirModal(modalDetalle.libro, 'apartar')}
+                >
+                  🔖 Apartar para cuando esté disponible
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL PRÉSTAMO / APARTADO ══ */}
       {modal && (
         <div className="libros-backdrop" onClick={() => setModal(null)}>
           <div className="libros-modal" onClick={e => e.stopPropagation()}>
             <button className="libros-modal-x" onClick={() => setModal(null)}>✕</button>
 
-            {/* Portada en el modal */}
             <div className="libros-modal-cover">
               <BookCover libro={modal.libro} size="lg" />
             </div>
@@ -419,10 +500,10 @@ export default function Libros() {
 
             <p className="libros-modal-aviso">
               {modal.tipo === 'prestar'
-                ? `Al confirmar, el libro quedará registrado a tu nombre. Debes devolverlo en biblioteca dentro de ${diasPrestamo} días. Si hay retraso, tu cuenta será bloqueada 1 día por cada día de retraso.`
+                ? `Al confirmar, el libro quedará registrado a tu nombre. Debes devolverlo en biblioteca dentro de ${diasPrestamo} días.`
                 : modal.libro.libro_ejemplares > 0
-                  ? 'El libro está disponible y será asignado a tu nombre de inmediato. Tendrás 3 días para pasar a recogerlo en biblioteca antes de que el apartado expire.'
-                  : 'El libro no está disponible. Te anotaremos en lista de espera. Si en 5 días no se libera un ejemplar, el apartado se cancelará automáticamente. Una vez asignado, tendrás 3 días para recogerlo.'
+                  ? 'El libro está disponible y será asignado a tu nombre de inmediato. Tendrás 3 días para pasar a recogerlo.'
+                  : 'Te anotaremos en lista de espera. Una vez asignado, tendrás 3 días para recogerlo.'
               }
             </p>
 
@@ -442,7 +523,7 @@ export default function Libros() {
         </div>
       )}
 
-{/* ══ FOOTER ══ */}
+      {/* Footer */}
       <footer className="home-footer">
         <div className="footer-grid">
           <div>
@@ -484,8 +565,6 @@ export default function Libros() {
           <span>Privacidad · Términos de uso · Accesibilidad</span>
         </div>
       </footer>
-
-
     </div>
   )
 }

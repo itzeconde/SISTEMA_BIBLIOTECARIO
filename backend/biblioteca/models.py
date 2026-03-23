@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import date, timedelta
 import uuid
+import re as _re
 
 # ─────────────────────────────────────────
 # Constantes globales
@@ -8,6 +9,26 @@ import uuid
 DIAS_ESPERA_APARTADO = 5
 DIAS_RECOGIDA        = 3
 DIAS_PRESTAMO_OPTS   = [3, 5, 7]
+
+# Matrícula única del administrador del sistema
+ADMIN_MATRICULA = 'AdminBiblioteca'
+
+
+def detectar_rol(matricula_id: str) -> str:
+    """
+    Detecta automáticamente el rol según el formato del identificador:
+      - Número de trabajador (docente):  exactamente 3 dígitos        ej. 059
+      - Matrícula (alumno):              dígitos + letras + dígitos    ej. 20242TIDSM059
+    El AdminBiblioteca no pasa por aquí; su rol no se usa para autenticar.
+    """
+    if _re.match(r'^\d{3}$', matricula_id):
+        return 'docente'
+    if _re.match(r'^\d{4,5}[A-Z]+\d+$', matricula_id):
+        return 'alumno'
+    raise ValueError(
+        "Formato no válido. "
+        "Matrícula alumno: 20242TIDSM059 | Número de trabajador: 059 (3 dígitos)"
+    )
 
 
 def calcular_fecha_limite_habiles(desde: date, dias: int) -> date:
@@ -34,29 +55,39 @@ class DiaFestivo(models.Model):
 
 class Usuario(models.Model):
     ROL_CHOICES = [
-        ('usuario', 'Usuario'),
-        ('admin',   'Admin'),
+        ('alumno',  'Alumno'),
+        ('docente', 'Docente'),
     ]
     usuario_id              = models.AutoField(primary_key=True)
+    # Para alumnos: matrícula tipo 20242TIDSM059
+    # Para docentes: número de trabajador tipo 059
+    # Para el admin: 'AdminBiblioteca' (único, creado manualmente)
     matricula_id            = models.CharField(max_length=20, unique=True)
     usuario_nombre          = models.CharField(max_length=100)
     usuario_aPaterno        = models.CharField(max_length=100)
     usuario_aMaterno        = models.CharField(max_length=100, blank=True, default='')
     usuario_password        = models.CharField(max_length=255)
-    usuario_email          = models.EmailField(max_length=255, blank=True, null=True)
-    usuario_rol             = models.CharField(max_length=20, choices=ROL_CHOICES, default='usuario')
+    usuario_email           = models.EmailField(max_length=255, blank=True, null=True)
+    usuario_rol             = models.CharField(max_length=20, choices=ROL_CHOICES, default='alumno')
     usuario_bloqueado_hasta = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'usuarios'
 
+    def __str__(self):
+        return f"{self.matricula_id} — {self.usuario_nombre} {self.usuario_aPaterno}"
+
+    @property
+    def es_admin(self):
+        return self.matricula_id == ADMIN_MATRICULA
+
 
 class PasswordResetToken(models.Model):
     """Token de un solo uso para restablecer contraseña vía correo."""
-    usuario    = models.ForeignKey(Usuario, on_delete=models.CASCADE)
-    token      = models.UUIDField(default=uuid.uuid4, unique=True)
-    creado_en  = models.DateTimeField(auto_now_add=True)
-    usado      = models.BooleanField(default=False)
+    usuario   = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    token     = models.UUIDField(default=uuid.uuid4, unique=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    usado     = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'password_reset_tokens'

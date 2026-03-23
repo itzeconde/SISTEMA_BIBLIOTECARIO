@@ -2,18 +2,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.conf import settings
-from django.conf import settings as django_settings
-from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 from datetime import datetime, timedelta, date
 import jwt
-import requests  # ← para Brevo
+import requests
 import os
 
 from .models import (
     Libro, Categoria, Editorial, Prestamo, Apartado, Multa, Usuario,
     DIAS_ESPERA_APARTADO, DIAS_RECOGIDA, DIAS_PRESTAMO_OPTS,
-    calcular_fecha_limite_habiles, PasswordResetToken,
+    calcular_fecha_limite_habiles, PasswordResetToken, ADMIN_MATRICULA,
 )
 from .serializers import (
     RegistroSerializer, LoginSerializer,
@@ -26,10 +24,11 @@ from .serializers import (
 
 
 # ─────────────────────────────────────────
-# Helpers
+# Helpers de autenticación
 # ─────────────────────────────────────────
 
 def get_usuario(request):
+    """Devuelve el Usuario autenticado a partir del JWT, o None."""
     auth = request.headers.get('Authorization', '')
     if not auth.startswith('Bearer '):
         return None
@@ -41,11 +40,20 @@ def get_usuario(request):
 
 
 def get_admin(request):
+    """
+    Devuelve el usuario solo si su matricula_id es exactamente 'AdminBiblioteca'.
+    El admin inicia sesión igual que cualquier usuario (matrícula + contraseña).
+    No depende del campo usuario_rol.
+    """
     usuario = get_usuario(request)
-    if usuario and usuario.usuario_rol == 'admin':
+    if usuario and usuario.matricula_id == ADMIN_MATRICULA:
         return usuario
     return None
 
+
+# ─────────────────────────────────────────
+# Helpers de negocio
+# ─────────────────────────────────────────
 
 def actualizar_estados_usuario(usuario):
     hoy = date.today()
@@ -112,7 +120,7 @@ def usuario_bloqueado(usuario):
 
 
 # ─────────────────────────────────────────
-# Auth
+# Auth — Registro y Login
 # ─────────────────────────────────────────
 
 class RegistroView(APIView):
@@ -141,6 +149,8 @@ class LoginView(APIView):
             return Response({
                 'token':   token,
                 'usuario': UsuarioSerializer(usuario).data,
+                # es_admin le dice al frontend si debe redirigir al panel admin
+                'es_admin': usuario.matricula_id == ADMIN_MATRICULA,
             })
         return Response(serializer.errors, status=400)
 
@@ -275,7 +285,7 @@ class PrestamoDetalleView(APIView):
         _asignar_siguiente_apartado(libro)
 
         return Response({
-            'message': 'Préstamo cancelado correctamente. El libro ha sido liberado.',
+            'message':  'Préstamo cancelado correctamente. El libro ha sido liberado.',
             'prestamo': PrestamoSerializer(prestamo).data,
         })
 
@@ -403,7 +413,8 @@ class AdminDashboardView(APIView):
         if not get_admin(request):
             return Response({'error': 'No autorizado'}, status=403)
         return Response({
-            'total_usuarios':       Usuario.objects.filter(usuario_rol='usuario').count(),
+            'total_alumnos':        Usuario.objects.filter(usuario_rol='alumno').count(),
+            'total_docentes':       Usuario.objects.filter(usuario_rol='docente').count(),
             'total_libros':         Libro.objects.count(),
             'prestamos_pendientes': Prestamo.objects.filter(prestamo_estatus='Pendiente').count(),
             'prestamos_activos':    Prestamo.objects.filter(prestamo_estatus='Activo').count(),
@@ -423,7 +434,10 @@ class AdminUsuariosView(APIView):
     def get(self, request):
         if not get_admin(request):
             return Response({'error': 'No autorizado'}, status=403)
-        usuarios = Usuario.objects.filter(usuario_rol='usuario').order_by('usuario_aPaterno')
+        # Excluir al AdminBiblioteca de la lista de usuarios gestionables
+        usuarios = Usuario.objects.exclude(
+            matricula_id=ADMIN_MATRICULA
+        ).order_by('usuario_aPaterno')
         return Response(UsuarioAdminSerializer(usuarios, many=True).data)
 
     def post(self, request):
@@ -455,6 +469,9 @@ class AdminUsuarioDetalleView(APIView):
             usuario = Usuario.objects.get(usuario_id=usuario_id)
         except Usuario.DoesNotExist:
             return Response({'error': 'Usuario no encontrado'}, status=404)
+        # No permitir editar al propio AdminBiblioteca desde esta vista
+        if usuario.matricula_id == ADMIN_MATRICULA:
+            return Response({'error': 'No se puede editar la cuenta de administrador desde aquí.'}, status=403)
         serializer = UsuarioAdminSerializer(usuario, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -468,6 +485,9 @@ class AdminUsuarioDetalleView(APIView):
             usuario = Usuario.objects.get(usuario_id=usuario_id)
         except Usuario.DoesNotExist:
             return Response({'error': 'Usuario no encontrado'}, status=404)
+        # No permitir eliminar al AdminBiblioteca
+        if usuario.matricula_id == ADMIN_MATRICULA:
+            return Response({'error': 'No se puede eliminar la cuenta de administrador.'}, status=403)
         usuario.delete()
         return Response({'message': 'Usuario eliminado correctamente'}, status=200)
 
@@ -887,7 +907,6 @@ class RecuperarPasswordView(APIView):
             frontend_url = os.environ.get("FRONTEND_URL", "https://sistemaweb-bibliotecario.netlify.app")
             reset_link   = f"{frontend_url}/reset-password/{token_obj.token}"
 
-            # ── Envío con Brevo ─────────────────────────────
             brevo_api_key = os.environ.get("BREVO_API_KEY", "")
 
             requests.post(
@@ -922,7 +941,6 @@ class RecuperarPasswordView(APIView):
                     """,
                 }
             )
-            # ────────────────────────────────────────────────
 
         except Usuario.DoesNotExist:
             pass  # No revelar si el email existe

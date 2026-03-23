@@ -530,3 +530,116 @@
 @media (max-width: 480px) {
   .libros-grid { grid-template-columns: 1fr; }
 }
+/* ── Agrega esto al final de tu Libros.css ── */
+
+/* Cards del mismo tamaño */
+.libro-card {
+  height: 100%;
+  min-height: 420px;
+}
+
+.libro-body {
+  flex: 1;
+  min-height: 100px;
+}
+
+/* Overlay en portada al hover */
+.libro-cover-wrap {
+  position: relative;
+}
+
+.libro-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.libro-cover-wrap:hover .libro-cover-overlay {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.libro-cover-overlay-txt {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  letter-spacing: 0.5px;
+}
+
+.libro-cover-wrap:hover .libro-cover-overlay-txt {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Modal detalle */
+.libros-modal-detalle {
+  max-width: 460px;
+}
+
+.libros-detalle-badges {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 14px 0 10px;
+}
+
+.libros-detalle-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.libros-detalle-badge.categoria {
+  background: #eff4ff;
+  color: #0057ff;
+}
+
+.libros-detalle-badge.disponible {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.libros-detalle-badge.agotado {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.libros-detalle-isbn {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.libros-detalle-desc {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid #e2e8f2;
+  margin-bottom: 4px;
+}
+
+.libros-detalle-desc-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #94a3b8;
+  margin: 0 0 8px;
+}
+
+.libros-detalle-desc-texto {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.65;
+  margin: 0;
+}

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import date
-from .models import Usuario, Libro, Categoria, Editorial, Prestamo, Apartado, Multa
+from .models import Usuario, Libro, Categoria, Editorial, Prestamo, Apartado, Multa, detectar_rol, ADMIN_MATRICULA
 import re
 
 
@@ -36,6 +36,17 @@ class RegistroSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El apellido materno solo puede contener letras y espacios.")
         return value.strip() if value else value
 
+    def validate_matricula_id(self, value):
+        value = value.strip()
+        # No permitir que nadie se registre como AdminBiblioteca
+        if value == ADMIN_MATRICULA:
+            raise serializers.ValidationError("Identificador no permitido.")
+        try:
+            detectar_rol(value)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+        return value.upper() if not value.isdigit() else value
+
     def validate_usuario_password(self, value):
         if len(value) < 6:
             raise serializers.ValidationError("La contraseña debe tener al menos 6 caracteres.")
@@ -48,6 +59,8 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['usuario_password'] = make_password(validated_data['usuario_password'])
+        # Rol se detecta automáticamente, nunca viene del frontend
+        validated_data['usuario_rol'] = detectar_rol(validated_data['matricula_id'])
         return super().create(validated_data)
 
 
@@ -56,8 +69,9 @@ class LoginSerializer(serializers.Serializer):
     usuario_password = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        matricula = data['matricula_id'].strip()
         try:
-            usuario = Usuario.objects.get(matricula_id=data['matricula_id'])
+            usuario = Usuario.objects.get(matricula_id=matricula)
         except Usuario.DoesNotExist:
             raise serializers.ValidationError("Matrícula o contraseña incorrectos.")
         if not check_password(data['usuario_password'], usuario.usuario_password):
@@ -73,13 +87,14 @@ class LoginSerializer(serializers.Serializer):
 class UsuarioSerializer(serializers.ModelSerializer):
     esta_bloqueado         = serializers.SerializerMethodField()
     dias_bloqueo_restantes = serializers.SerializerMethodField()
+    es_admin               = serializers.SerializerMethodField()
 
     class Meta:
         model  = Usuario
         fields = [
             'usuario_id', 'usuario_nombre', 'usuario_aPaterno', 'usuario_aMaterno',
             'matricula_id', 'usuario_email', 'usuario_rol', 'usuario_bloqueado_hasta',
-            'esta_bloqueado', 'dias_bloqueo_restantes',
+            'esta_bloqueado', 'dias_bloqueo_restantes', 'es_admin',
         ]
 
     def get_esta_bloqueado(self, obj):
@@ -90,11 +105,17 @@ class UsuarioSerializer(serializers.ModelSerializer):
             return (obj.usuario_bloqueado_hasta - date.today()).days
         return 0
 
+    def get_es_admin(self, obj):
+        return obj.matricula_id == ADMIN_MATRICULA
+
 
 class UsuarioAdminSerializer(serializers.ModelSerializer):
     """
-    El admin NO puede ver ni cambiar la contraseña de usuarios existentes.
-    Solo puede establecerla al CREAR (requerida en ese caso).
+    Usado por el admin para crear/editar usuarios.
+    - El ROL se detecta automáticamente por el formato de la matrícula/número de trabajador.
+    - El admin NO elige el rol manualmente.
+    - El admin NO puede ver ni cambiar contraseñas de usuarios existentes.
+    - La contraseña solo se establece al CREAR.
     """
     esta_bloqueado         = serializers.SerializerMethodField()
     dias_bloqueo_restantes = serializers.SerializerMethodField()
@@ -104,10 +125,12 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
         model  = Usuario
         fields = [
             'usuario_id', 'usuario_nombre', 'usuario_aPaterno', 'usuario_aMaterno',
-            'matricula_id', 'usuario_email', 'usuario_rol', 'usuario_bloqueado_hasta',
-            'esta_bloqueado', 'dias_bloqueo_restantes',
+            'matricula_id', 'usuario_email', 'usuario_rol',
+            'usuario_bloqueado_hasta', 'esta_bloqueado', 'dias_bloqueo_restantes',
             'usuario_password',
         ]
+        # usuario_rol es solo lectura: se muestra pero nunca lo elige el admin
+        read_only_fields = ['usuario_rol']
 
     def solo_letras(self, valor):
         return bool(re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$', valor.strip()))
@@ -127,6 +150,18 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El apellido materno solo puede contener letras y espacios.")
         return value.strip() if value else value
 
+    def validate_matricula_id(self, value):
+        value = value.strip()
+        # No permitir crear otro AdminBiblioteca
+        if value == ADMIN_MATRICULA:
+            raise serializers.ValidationError("Ese identificador está reservado.")
+        try:
+            detectar_rol(value)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+        # Mayúsculas para matrícula de alumno, dígitos puros para docente
+        return value.upper() if not value.isdigit() else value
+
     def get_esta_bloqueado(self, obj):
         return bool(obj.usuario_bloqueado_hasta and obj.usuario_bloqueado_hasta >= date.today())
 
@@ -140,11 +175,17 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
         if not password:
             raise serializers.ValidationError({'usuario_password': 'La contraseña es requerida al crear un usuario.'})
         validated_data['usuario_password'] = make_password(password)
+        # Auto-detectar rol desde la matrícula — nunca del request
+        validated_data['usuario_rol'] = detectar_rol(validated_data['matricula_id'])
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        # Nunca actualizar contraseña ni rol manualmente
         validated_data.pop('usuario_password', None)
         validated_data.pop('usuario_rol', None)
+        # Si cambia la matrícula, recalcular el rol
+        if 'matricula_id' in validated_data:
+            validated_data['usuario_rol'] = detectar_rol(validated_data['matricula_id'])
         return super().update(instance, validated_data)
 
 
@@ -188,6 +229,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
     usuario_nombre              = serializers.SerializerMethodField()
     usuario_id                  = serializers.IntegerField(source='usuario.usuario_id', read_only=True)
     matricula_id                = serializers.CharField(source='usuario.matricula_id',  read_only=True)
+    usuario_rol                 = serializers.CharField(source='usuario.usuario_rol',   read_only=True)
     dias_retraso                = serializers.SerializerMethodField()
     prestamo_entregado_admin    = serializers.BooleanField(read_only=True)
     prestamo_fecha_entrega_real = serializers.DateField(read_only=True)
@@ -195,7 +237,7 @@ class PrestamoSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Prestamo
         fields = [
-            'prestamo_id', 'usuario_id', 'usuario_nombre', 'matricula_id',
+            'prestamo_id', 'usuario_id', 'usuario_nombre', 'matricula_id', 'usuario_rol',
             'libro_id', 'libro_titulo', 'libro_autor',
             'prestamo_fecha_salida', 'prestamo_fecha_entrega_esperada',
             'prestamo_fecha_devolucion_real', 'prestamo_estatus',
@@ -235,12 +277,13 @@ class ApartadoSerializer(serializers.ModelSerializer):
     usuario_nombre = serializers.SerializerMethodField()
     usuario_id     = serializers.IntegerField(source='usuario.usuario_id', read_only=True)
     matricula_id   = serializers.CharField(source='usuario.matricula_id',  read_only=True)
+    usuario_rol    = serializers.CharField(source='usuario.usuario_rol',   read_only=True)
     dias_restantes = serializers.SerializerMethodField()
 
     class Meta:
         model  = Apartado
         fields = [
-            'apartado_id', 'usuario_id', 'usuario_nombre', 'matricula_id',
+            'apartado_id', 'usuario_id', 'usuario_nombre', 'matricula_id', 'usuario_rol',
             'libro_id', 'libro_titulo', 'libro_autor',
             'apartado_fecha', 'apartado_fecha_expiracion',
             'apartado_fecha_asignacion', 'apartado_fecha_limite_recogida',

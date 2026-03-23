@@ -24,7 +24,8 @@ function RutaAdmin({ children }: { children: React.ReactNode }) {
   const token   = localStorage.getItem('token');
   const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
   if (!token) return <Navigate to="/login" />;
-  if (!usuario || usuario.usuario_rol !== 'admin') return <Navigate to="/home" />;
+  // Se identifica por matricula_id, no por usuario_rol
+  if (!usuario || usuario.matricula_id !== 'AdminBiblioteca') return <Navigate to="/home" />;
   return <>{children}</>;
 }
 
