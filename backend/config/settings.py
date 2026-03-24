@@ -1,11 +1,13 @@
 from pathlib import Path
-from datetime import timedelta
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── Seguridad ──────────────────────────────────────────────
-SECRET_KEY = os.environ.get("SECRET_KEY", "biblioteca-web-secret-key-2024!!")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY no está definida en las variables de entorno")
 
 DEBUG = os.environ.get("RAILWAY_ENVIRONMENT") != "production"
 
@@ -14,7 +16,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     os.environ.get("RAILWAY_PUBLIC_DOMAIN", ""),
     ".railway.app",
-    ".vercel.app",  # ← actualizado de .netlify.app
+    ".vercel.app",
 ]
 ALLOWED_HOSTS = [h for h in ALLOWED_HOSTS if h]
 
@@ -32,7 +34,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # ← siempre al inicio
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -115,7 +117,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5174",
     "http://localhost:3000",
     "https://sistemaweb-bibliotecario.netlify.app",
-    "https://sistema-bibliotecario-six.vercel.app",  # ← agregado Vercel
+    "https://sistema-bibliotecario-six.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
