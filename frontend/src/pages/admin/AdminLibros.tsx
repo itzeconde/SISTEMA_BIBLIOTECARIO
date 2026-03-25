@@ -48,6 +48,18 @@ const ITEMS_POR_PAGINA = 10;
 const ejClass = (n: number) =>
   n === 0 ? 'cero' : n <= 2 ? 'bajo' : n <= 5 ? 'medio' : 'alto';
 
+// ── Helper: extrae el primer mensaje de error de una respuesta DRF ──────────
+const extraerError = (data: any, fallback: string): string => {
+  if (typeof data === 'string') return data;
+  // Buscar el primer array de mensajes en cualquier campo
+  for (const key of Object.keys(data)) {
+    const val = data[key];
+    if (Array.isArray(val) && val.length > 0) return val[0];
+    if (typeof val === 'string') return val;
+  }
+  return fallback;
+};
+
 export default function AdminLibros() {
   const [libros,      setLibros]      = useState<Libro[]>([]);
   const [categorias,  setCategorias]  = useState<Categoria[]>([]);
@@ -106,22 +118,22 @@ export default function AdminLibros() {
     setGuardando(true);
     try {
       const body = {
-        libro_titulo:     form.libro_titulo,
-        libro_autor:      form.libro_autor,
-        libro_isbn:       form.libro_isbn,
-        libro_ejemplares: form.libro_ejemplares,
-        libro_descripcion:form.libro_descripcion,
-        categoria:        form.categoria ? Number(form.categoria) : null,
-        editorial:        form.editorial ? Number(form.editorial) : null,
+        libro_titulo:      form.libro_titulo,
+        libro_autor:       form.libro_autor,
+        libro_isbn:        form.libro_isbn,
+        libro_ejemplares:  form.libro_ejemplares,
+        libro_descripcion: form.libro_descripcion,
+        categoria:         form.categoria ? Number(form.categoria) : null,
+        editorial:         form.editorial ? Number(form.editorial) : null,
       };
 
       if (modal?.tipo === 'crear') {
         const r = await fetch(`${API}/admin/libros/`, { method: 'POST', headers, body: JSON.stringify(body) });
-        if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
+        if (!r.ok) { const d = await r.json(); throw new Error(extraerError(d, 'Error al crear libro')); }
         mostrar('ok', 'Libro creado correctamente');
       } else if (modal?.tipo === 'editar') {
         const r = await fetch(`${API}/admin/libros/${modal.libro.libro_id}/`, { method: 'PUT', headers, body: JSON.stringify(body) });
-        if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
+        if (!r.ok) { const d = await r.json(); throw new Error(extraerError(d, 'Error al actualizar libro')); }
         mostrar('ok', 'Libro actualizado correctamente');
       }
       setModal(null);
@@ -150,9 +162,7 @@ export default function AdminLibros() {
         body: JSON.stringify({ categoria_nombre: nuevoNombre }),
       });
       const data = await r.json();
-      console.log('STATUS categoría:', r.status);
-      console.log('RESPUESTA categoría:', data);
-      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
+      if (!r.ok) throw new Error(extraerError(data, 'Error al crear categoría'));
       setNuevoNombre(''); cargar(); mostrar('ok', 'Categoría creada');
     } catch (e: any) { mostrar('err', e.message); }
   };
@@ -164,9 +174,7 @@ export default function AdminLibros() {
         body: JSON.stringify({ categoria_nombre: editNombre }),
       });
       const data = await r.json();
-      console.log('STATUS editar categoría:', r.status);
-      console.log('RESPUESTA editar categoría:', data);
-      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
+      if (!r.ok) throw new Error(extraerError(data, 'Error al actualizar categoría'));
       setEditandoId(null); cargar(); mostrar('ok', 'Categoría actualizada');
     } catch (e: any) { mostrar('err', e.message); }
   };
@@ -174,7 +182,6 @@ export default function AdminLibros() {
   const eliminarCategoria = async (id: number) => {
     try {
       const r = await fetch(`${API}/admin/categorias/${id}/`, { method: 'DELETE', headers });
-      console.log('STATUS eliminar categoría:', r.status);
       if (!r.ok) throw new Error('Error al eliminar categoría');
       cargar(); mostrar('ok', 'Categoría eliminada');
     } catch (e: any) { mostrar('err', e.message); }
@@ -189,9 +196,7 @@ export default function AdminLibros() {
         body: JSON.stringify({ editorial_nombre: nuevoNombre }),
       });
       const data = await r.json();
-      console.log('STATUS editorial:', r.status);
-      console.log('RESPUESTA editorial:', data);
-      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
+      if (!r.ok) throw new Error(extraerError(data, 'Error al crear editorial'));
       setNuevoNombre(''); cargar(); mostrar('ok', 'Editorial creada');
     } catch (e: any) { mostrar('err', e.message); }
   };
@@ -203,9 +208,7 @@ export default function AdminLibros() {
         body: JSON.stringify({ editorial_nombre: editNombre }),
       });
       const data = await r.json();
-      console.log('STATUS editar editorial:', r.status);
-      console.log('RESPUESTA editar editorial:', data);
-      if (!r.ok) throw new Error(data.error || JSON.stringify(data));
+      if (!r.ok) throw new Error(extraerError(data, 'Error al actualizar editorial'));
       setEditandoId(null); cargar(); mostrar('ok', 'Editorial actualizada');
     } catch (e: any) { mostrar('err', e.message); }
   };
@@ -213,13 +216,12 @@ export default function AdminLibros() {
   const eliminarEditorial = async (id: number) => {
     try {
       const r = await fetch(`${API}/admin/editoriales/${id}/`, { method: 'DELETE', headers });
-      console.log('STATUS eliminar editorial:', r.status);
       if (!r.ok) throw new Error('Error al eliminar editorial');
       cargar(); mostrar('ok', 'Editorial eliminada');
     } catch (e: any) { mostrar('err', e.message); }
   };
 
-  // Paginación
+  // ── Paginación ────────────────────────────────────────────────────────────
   const filtrados    = libros.filter(l =>
     `${l.libro_titulo} ${l.libro_autor} ${l.libro_isbn}`.toLowerCase().includes(busqueda.toLowerCase())
   );
