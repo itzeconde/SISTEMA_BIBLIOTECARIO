@@ -37,14 +37,15 @@ interface Prestamo {
 export default function Prestamos() {
   const navigate = useNavigate()
 
-  const [prestamos,   setPrestamos]   = useState<Prestamo[]>([])
-  const [multas,      setMultas]      = useState<Multa[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [tab,         setTab]         = useState<Tab>('activos')
-  const [pagina,      setPagina]      = useState(1)
-  const [msg,         setMsg]         = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null)
-  const [modalCancel, setModalCancel] = useState<Prestamo | null>(null)
-  const [cancelando,  setCancelando]  = useState(false)
+  const [prestamos,       setPrestamos]       = useState<Prestamo[]>([])
+  const [multas,          setMultas]          = useState<Multa[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [tab,             setTab]             = useState<Tab>('activos')
+  const [pagina,          setPagina]          = useState(1)
+  const [msg,             setMsg]             = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null)
+  const [modalCancel,     setModalCancel]     = useState<Prestamo | null>(null)
+  const [cancelando,      setCancelando]      = useState(false)
+  const [modalPrivacidad, setModalPrivacidad] = useState(false)
 
   const token   = localStorage.getItem('token')
   const usuario = JSON.parse(localStorage.getItem('usuario') || 'null')
@@ -100,7 +101,6 @@ export default function Prestamos() {
 
   const cambiarTab = (t: Tab) => { setTab(t); setPagina(1) }
 
-  // ── Cancelar préstamo ─────────────────────────────────────────────────────
   const handleCancelar = async () => {
     if (!modalCancel) return
     setCancelando(true)
@@ -220,8 +220,6 @@ export default function Prestamos() {
                       const urg  = urgClass(dias)
                       return (
                         <div key={p.prestamo_id} className={`prest-card urg-${urg}`}>
-
-                          {/* ── Banner estado entrega ── */}
                           {p.prestamo_estatus === 'Pendiente' ? (
                             <div className="prest-entrega-banner pendiente-entrega">
                               <span className="prest-entrega-ico">⏳</span>
@@ -245,7 +243,6 @@ export default function Prestamos() {
                             </div>
                           ) : null}
 
-                          {/* ── Pill urgencia ── */}
                           <div className="prest-card-top">
                             {p.prestamo_entregado_admin && dias !== null ? (
                               <span className={`prest-urg-pill urg-${urg}`}>
@@ -288,13 +285,9 @@ export default function Prestamos() {
                             </div>
                           </div>
 
-                          {/* ── Botón cancelar — SOLO si Pendiente ── */}
                           {p.prestamo_estatus === 'Pendiente' && (
                             <div className="prest-card-footer">
-                              <button
-                                className="prest-btn-cancelar"
-                                onClick={() => setModalCancel(p)}
-                              >
+                              <button className="prest-btn-cancelar" onClick={() => setModalCancel(p)}>
                                 Cancelar préstamo
                               </button>
                             </div>
@@ -406,7 +399,7 @@ export default function Prestamos() {
         )}
       </div>
 
-     {/* ══ FOOTER ══ */}
+      {/* ══ FOOTER ══ */}
       <footer className="home-footer">
         <div className="footer-grid">
           <div>
@@ -445,10 +438,15 @@ export default function Prestamos() {
         </div>
         <div className="footer-bottom">
           <span>© 2025 Biblioteca WEB · Todos los derechos reservados</span>
-          <span>Privacidad · Términos de uso · Accesibilidad</span>
+          <div className="footer-bottom-links">
+            <span className="footer-bottom-link" onClick={() => setModalPrivacidad(true)}>Privacidad</span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Términos de uso</span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Accesibilidad</span>
+          </div>
         </div>
       </footer>
-
 
       {/* ══ MODAL CANCELAR ══ */}
       {modalCancel && (
@@ -457,7 +455,6 @@ export default function Prestamos() {
             <button className="prest-modal-x" onClick={() => setModalCancel(null)}>✕</button>
             <div className="prest-modal-ico">📚</div>
             <h2 className="prest-modal-title">¿Cancelar préstamo?</h2>
-
             <div className="prest-modal-info">
               <div className="prest-modal-row">
                 <span>Libro</span>
@@ -476,12 +473,10 @@ export default function Prestamos() {
                 <strong>{modalCancel.prestamo_dias_plazo} días hábiles</strong>
               </div>
             </div>
-
             <p className="prest-modal-aviso">
               El libro aún no ha sido entregado, por lo que puedes cancelar sin penalización.
               El ejemplar quedará disponible para otros usuarios.
             </p>
-
             <div className="prest-modal-btns">
               <button
                 className="prest-modal-btn-confirmar"
@@ -491,6 +486,41 @@ export default function Prestamos() {
                 {cancelando ? 'Cancelando…' : 'Sí, cancelar préstamo'}
               </button>
               <button className="prest-modal-btn-cerrar" onClick={() => setModalCancel(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL POLÍTICA DE PRIVACIDAD ══ */}
+      {modalPrivacidad && (
+        <div className="privacidad-backdrop" onClick={() => setModalPrivacidad(false)}>
+          <div className="privacidad-modal" onClick={e => e.stopPropagation()}>
+            <div className="privacidad-modal-header">
+              <h2>Política de Privacidad</h2>
+              <button className="privacidad-modal-close" onClick={() => setModalPrivacidad(false)}>✕</button>
+            </div>
+            <div className="privacidad-modal-body">
+              <h3>1. Responsable del tratamiento de datos</h3>
+              <p>La institución educativa es responsable del tratamiento de los datos personales que los usuarios proporcionan al registrarse en el sistema de Biblioteca WEB.</p>
+              <h3>2. Datos que recopilamos</h3>
+              <p>Recopilamos únicamente los datos necesarios para la operación del servicio: nombre completo, apellidos, matrícula o número de trabajador, y correo electrónico. No se solicitan datos sensibles.</p>
+              <h3>3. Finalidad del uso de datos</h3>
+              <p>Los datos personales se utilizan exclusivamente para: gestionar el acceso al sistema, administrar préstamos y apartados de libros, enviar notificaciones relacionadas con el servicio.</p>
+              <h3>4. Uso del correo electrónico</h3>
+              <p>El correo electrónico registrado se emplea únicamente para comunicaciones del sistema de biblioteca. No será utilizado para fines publicitarios ni compartido con terceros.</p>
+              <h3>5. Almacenamiento y seguridad</h3>
+              <p>Los datos se almacenan en servidores institucionales con medidas de seguridad técnicas y administrativas para prevenir accesos no autorizados, pérdida o alteración de la información.</p>
+              <h3>6. Derechos del usuario</h3>
+              <p>El usuario tiene derecho a acceder, rectificar o solicitar la eliminación de sus datos personales. Para ejercer estos derechos, deberá acudir directamente al personal de la biblioteca.</p>
+              <h3>7. Conservación de datos</h3>
+              <p>Los datos se conservarán mientras el usuario mantenga una cuenta activa en el sistema. Una vez dada de baja la cuenta, los datos podrán eliminarse conforme a las políticas internas.</p>
+              <h3>8. Cambios a esta política</h3>
+              <p>La institución se reserva el derecho de actualizar esta política. Cualquier modificación relevante será notificada a los usuarios a través del correo registrado.</p>
+            </div>
+            <div className="privacidad-modal-footer">
+              <button className="privacidad-btn-cerrar" onClick={() => setModalPrivacidad(false)}>
                 Cerrar
               </button>
             </div>

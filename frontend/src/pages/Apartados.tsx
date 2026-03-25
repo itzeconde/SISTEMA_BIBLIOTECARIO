@@ -18,11 +18,12 @@ interface ModalData {
 export default function Apartados() {
   const navigate = useNavigate();
 
-  const [apartados, setApartados] = useState<Apartado[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [modal,     setModal]     = useState<ModalData | null>(null);
-  const [msg,       setMsg]       = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
-  const [pagina,    setPagina]    = useState(1);
+  const [apartados,       setApartados]       = useState<Apartado[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [modal,           setModal]           = useState<ModalData | null>(null);
+  const [msg,             setMsg]             = useState<{ tipo: 'ok' | 'err'; texto: string } | null>(null);
+  const [pagina,          setPagina]          = useState(1);
+  const [modalPrivacidad, setModalPrivacidad] = useState(false);
 
   const usuario = JSON.parse(localStorage.getItem('usuario') || 'null');
 
@@ -69,7 +70,6 @@ export default function Apartados() {
   const activos = apartados.filter(a => ['Pendiente', 'Asignado'].includes(a.apartado_estatus));
   const pasados = apartados.filter(a => !['Pendiente', 'Asignado'].includes(a.apartado_estatus));
 
-  // ── Paginado historial ──
   const totalPaginas  = Math.ceil(pasados.length / POR_PAGINA);
   const pasadosPagina = pasados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
@@ -117,7 +117,6 @@ export default function Apartados() {
   );
 
   return (
-    
     <div className="apart-page" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
       {/* Hero */}
@@ -142,7 +141,6 @@ export default function Apartados() {
         </div>
       </div>
 
-      {/* Alerta límite */}
       {activos.length >= 3 && (
         <div className="prest-alerta" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }}>
           <div className="prest-alerta-ico" style={{ background: '#3b82f6' }}>i</div>
@@ -156,7 +154,6 @@ export default function Apartados() {
         </div>
       )}
 
-      {/* ← flex: 1 para que este bloque ocupe todo el espacio disponible */}
       <div style={{ flex: 1 }}>
         {loading ? (
           <div className="apart-loading">
@@ -170,7 +167,6 @@ export default function Apartados() {
               <h2 className="apart-section-title">
                 Activos <span className="apart-badge">{activos.length}</span>
               </h2>
-
               {activos.length === 0 ? (
                 <div className="apart-empty">
                   <div className="apart-empty-ico">🔖</div>
@@ -225,11 +221,9 @@ export default function Apartados() {
                 <h2 className="apart-section-title">
                   Historial <span className="apart-badge">{pasados.length}</span>
                 </h2>
-
                 <p className="prest-pag-info">
                   Mostrando {(pagina - 1) * POR_PAGINA + 1}–{Math.min(pagina * POR_PAGINA, pasados.length)} de {pasados.length} apartados
                 </p>
-
                 <div className="apart-tabla-wrap">
                   <table className="apart-tabla">
                     <thead>
@@ -258,7 +252,6 @@ export default function Apartados() {
                     </tbody>
                   </table>
                 </div>
-
                 {totalPaginas > 1 && <Paginador />}
               </section>
             )}
@@ -266,7 +259,7 @@ export default function Apartados() {
         )}
       </div>
 
-      {/* ══ MODAL ══ */}
+      {/* ══ MODAL APARTADO ══ */}
       {modal && (
         <div className="apart-backdrop" onClick={() => setModal(null)}>
           <div className="apart-modal" onClick={e => e.stopPropagation()}>
@@ -275,14 +268,12 @@ export default function Apartados() {
             <p className="apart-modal-pre">Libro apartado</p>
             <h2 className="apart-modal-titulo">{modal.libro_titulo}</h2>
             <p className="apart-modal-autor">{modal.libro_autor}</p>
-
             <div className={`apart-dias-box urg-${urgClass(modal.dias_restantes)}`}>
               <span className="apart-dias-num">{modal.dias_restantes}</span>
               <span className="apart-dias-label">
                 {modal.dias_restantes === 1 ? 'día restante' : 'días restantes'}
               </span>
             </div>
-
             <div className={`apart-aviso urg-${urgClass(modal.dias_restantes)}`}>
               {modal.dias_restantes === 0
                 ? '⚠️ Tu apartado expira hoy. Pasa a recogerlo a la brevedad.'
@@ -290,7 +281,6 @@ export default function Apartados() {
                 ? '⚠️ Solo tienes 1 día. Recoge el libro mañana a más tardar.'
                 : `Tienes hasta el ${fl(modal.apartado_fecha_expiracion)} para recoger el libro en biblioteca.`}
             </div>
-
             <div className="apart-modal-btns">
               <button className="apart-btn-cancelar" onClick={() => handleCancelar(modal.apartado_id)}>
                 Cancelar apartado
@@ -303,7 +293,42 @@ export default function Apartados() {
         </div>
       )}
 
- {/* ══ FOOTER ══ */}
+      {/* ══ MODAL POLÍTICA DE PRIVACIDAD ══ */}
+      {modalPrivacidad && (
+        <div className="privacidad-backdrop" onClick={() => setModalPrivacidad(false)}>
+          <div className="privacidad-modal" onClick={e => e.stopPropagation()}>
+            <div className="privacidad-modal-header">
+              <h2>Política de Privacidad</h2>
+              <button className="privacidad-modal-close" onClick={() => setModalPrivacidad(false)}>✕</button>
+            </div>
+            <div className="privacidad-modal-body">
+              <h3>1. Responsable del tratamiento de datos</h3>
+              <p>La institución educativa es responsable del tratamiento de los datos personales que los usuarios proporcionan al registrarse en el sistema de Biblioteca WEB.</p>
+              <h3>2. Datos que recopilamos</h3>
+              <p>Recopilamos únicamente los datos necesarios para la operación del servicio: nombre completo, apellidos, matrícula o número de trabajador, y correo electrónico. No se solicitan datos sensibles.</p>
+              <h3>3. Finalidad del uso de datos</h3>
+              <p>Los datos personales se utilizan exclusivamente para: gestionar el acceso al sistema, administrar préstamos y apartados de libros, enviar notificaciones relacionadas con el servicio.</p>
+              <h3>4. Uso del correo electrónico</h3>
+              <p>El correo electrónico registrado se emplea únicamente para comunicaciones del sistema de biblioteca. No será utilizado para fines publicitarios ni compartido con terceros.</p>
+              <h3>5. Almacenamiento y seguridad</h3>
+              <p>Los datos se almacenan en servidores institucionales con medidas de seguridad técnicas y administrativas para prevenir accesos no autorizados, pérdida o alteración de la información.</p>
+              <h3>6. Derechos del usuario</h3>
+              <p>El usuario tiene derecho a acceder, rectificar o solicitar la eliminación de sus datos personales. Para ejercer estos derechos, deberá acudir directamente al personal de la biblioteca.</p>
+              <h3>7. Conservación de datos</h3>
+              <p>Los datos se conservarán mientras el usuario mantenga una cuenta activa en el sistema. Una vez dada de baja la cuenta, los datos podrán eliminarse conforme a las políticas internas.</p>
+              <h3>8. Cambios a esta política</h3>
+              <p>La institución se reserva el derecho de actualizar esta política. Cualquier modificación relevante será notificada a los usuarios a través del correo registrado.</p>
+            </div>
+            <div className="privacidad-modal-footer">
+              <button className="privacidad-btn-cerrar" onClick={() => setModalPrivacidad(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ FOOTER ══ */}
       <footer className="home-footer">
         <div className="footer-grid">
           <div>
@@ -342,11 +367,15 @@ export default function Apartados() {
         </div>
         <div className="footer-bottom">
           <span>© 2025 Biblioteca WEB · Todos los derechos reservados</span>
-          <span>Privacidad · Términos de uso · Accesibilidad</span>
+          <div className="footer-bottom-links">
+            <span className="footer-bottom-link" onClick={() => setModalPrivacidad(true)}>Privacidad</span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Términos de uso</span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Accesibilidad</span>
+          </div>
         </div>
       </footer>
-
-
     </div>
   );
 }
