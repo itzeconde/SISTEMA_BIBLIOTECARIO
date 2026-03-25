@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import './AdminUsuarios.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const POR_PAGINA = 10;
 
 interface Usuario {
   usuario_id:              number;
@@ -24,7 +25,6 @@ interface FormCrear {
   matricula_id:     string;
   usuario_email:    string;
   usuario_password: string;
-  // usuario_rol NO se incluye — el backend lo detecta automáticamente
 }
 
 interface FormEditar {
@@ -64,7 +64,6 @@ const validarNombres = (nombre: string, aPaterno: string, aMaterno: string): str
   return "";
 };
 
-// Detecta el rol visualmente según el formato de la matrícula
 const detectarRolTexto = (matricula: string): string => {
   if (/^\d{3}$/.test(matricula))           return 'docente';
   if (/^\d{4,5}[A-Z]+\d+$/.test(matricula)) return 'alumno';
@@ -76,6 +75,7 @@ export default function AdminUsuarios() {
   const [usuarios,   setUsuarios]   = useState<Usuario[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [busqueda,   setBusqueda]   = useState('');
+  const [pagina,     setPagina]     = useState(1);
   const [modal,      setModal]      = useState<Modal | null>(null);
   const [formCrear,  setFormCrear]  = useState<FormCrear>(FORM_CREAR_VACIO);
   const [formEditar, setFormEditar] = useState<FormEditar>(FORM_EDITAR_VACIO);
@@ -96,6 +96,9 @@ export default function AdminUsuarios() {
   };
 
   useEffect(() => { cargar(); }, []);
+
+  // Resetear a página 1 cuando cambia la búsqueda
+  useEffect(() => { setPagina(1); }, [busqueda]);
 
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
     setMsg({ tipo, texto });
@@ -176,20 +179,44 @@ export default function AdminUsuarios() {
     try {
       await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, { method: 'DELETE', headers });
       mostrar('ok', 'Usuario eliminado correctamente');
-      setModal(null); cargar();
+      setModal(null);
+      // Si la página actual queda vacía tras eliminar, retroceder una página
+      const nuevoTotal = usuarios.length - 1;
+      const maxPagina = Math.max(1, Math.ceil(nuevoTotal / POR_PAGINA));
+      if (pagina > maxPagina) setPagina(maxPagina);
+      cargar();
     } catch { mostrar('err', 'Error al eliminar usuario'); }
     finally { setGuardando(false); }
   };
 
+  // ── Filtrado y paginación ─────────────────────────────────
   const filtrados = usuarios.filter(u =>
     `${u.usuario_nombre} ${u.usuario_aPaterno} ${u.matricula_id} ${u.usuario_email}`
       .toLowerCase().includes(busqueda.toLowerCase())
   );
 
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginaSegura = Math.min(pagina, totalPaginas);
+  const inicio       = (paginaSegura - 1) * POR_PAGINA;
+  const paginados    = filtrados.slice(inicio, inicio + POR_PAGINA);
+
+  // Números de página visibles (máximo 5, centrados alrededor de la página actual)
+  const generarPaginas = (): (number | '...')[] => {
+    if (totalPaginas <= 7) return Array.from({ length: totalPaginas }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [1];
+    if (paginaSegura > 3) pages.push('...');
+    for (let i = Math.max(2, paginaSegura - 1); i <= Math.min(totalPaginas - 1, paginaSegura + 1); i++) {
+      pages.push(i);
+    }
+    if (paginaSegura < totalPaginas - 2) pages.push('...');
+    pages.push(totalPaginas);
+    return pages;
+  };
+  // ─────────────────────────────────────────────────────────
+
   const fc = (f: string) =>
     new Date(f + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  // Rol detectado en tiempo real mientras el admin escribe la matrícula
   const rolDetectadoCrear = detectarRolTexto(formCrear.matricula_id.toUpperCase());
 
   return (
@@ -219,57 +246,102 @@ export default function AdminUsuarios() {
       ) : filtrados.length === 0 ? (
         <div className="ausu-empty"><p>No se encontraron usuarios.</p></div>
       ) : (
-        <div className="ausu-tabla-wrap">
-          <table className="ausu-tabla">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Matrícula / N° Trabajador</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Estatus</th>
-                <th>Bloqueado hasta</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map(u => (
-                <tr key={u.usuario_id}>
-                  <td className="td-nombre">
-                    <div className="ausu-avatar">{u.usuario_nombre[0]}</div>
-                    <div>
-                      <div className="td-bold">
-                        {u.usuario_nombre} {u.usuario_aPaterno} {u.usuario_aMaterno}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="td-muted">{u.matricula_id}</td>
-                  <td className="td-muted">{u.usuario_email}</td>
-                  <td>
-                    <span className={`ausu-pill rol-${u.usuario_rol}`}>
-                      {u.usuario_rol === 'alumno' ? '🎓 Alumno' : '👨‍🏫 Docente'}
-                    </span>
-                  </td>
-                  <td>
-                    {u.esta_bloqueado
-                      ? <span className="ausu-pill bloqueado">🔒 Bloqueado</span>
-                      : <span className="ausu-pill activo">Activo</span>
-                    }
-                  </td>
-                  <td className="td-muted">
-                    {u.usuario_bloqueado_hasta ? fc(u.usuario_bloqueado_hasta) : '—'}
-                  </td>
-                  <td>
-                    <div className="ausu-acciones">
-                      <button className="ausu-btn-edit" onClick={() => abrirEditar(u)}>Editar</button>
-                      <button className="ausu-btn-del" onClick={() => setModal({ tipo: 'eliminar', usuario: u })}>Eliminar</button>
-                    </div>
-                  </td>
+        <>
+          <div className="ausu-tabla-wrap">
+            <table className="ausu-tabla">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Matrícula / N° Trabajador</th>
+                  <th>Correo</th>
+                  <th>Rol</th>
+                  <th>Estatus</th>
+                  <th>Bloqueado hasta</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paginados.map(u => (
+                  <tr key={u.usuario_id}>
+                    <td className="td-nombre">
+                      <div className="ausu-avatar">{u.usuario_nombre[0]}</div>
+                      <div>
+                        <div className="td-bold">
+                          {u.usuario_nombre} {u.usuario_aPaterno} {u.usuario_aMaterno}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="td-muted">{u.matricula_id}</td>
+                    <td className="td-muted">{u.usuario_email}</td>
+                    <td>
+                      <span className={`ausu-pill rol-${u.usuario_rol}`}>
+                        {u.usuario_rol === 'alumno' ? '🎓 Alumno' : '👨‍🏫 Docente'}
+                      </span>
+                    </td>
+                    <td>
+                      {u.esta_bloqueado
+                        ? <span className="ausu-pill bloqueado">🔒 Bloqueado</span>
+                        : <span className="ausu-pill activo">Activo</span>
+                      }
+                    </td>
+                    <td className="td-muted">
+                      {u.usuario_bloqueado_hasta ? fc(u.usuario_bloqueado_hasta) : '—'}
+                    </td>
+                    <td>
+                      <div className="ausu-acciones">
+                        <button className="ausu-btn-edit" onClick={() => abrirEditar(u)}>Editar</button>
+                        <button className="ausu-btn-del" onClick={() => setModal({ tipo: 'eliminar', usuario: u })}>Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Paginación ── */}
+          {totalPaginas > 1 && (
+            <div className="ausu-paginacion">
+              <span className="ausu-pag-info">
+                {inicio + 1}–{Math.min(inicio + POR_PAGINA, filtrados.length)} de {filtrados.length}
+              </span>
+
+              <div className="ausu-pag-controles">
+                <button
+                  className="ausu-pag-btn"
+                  onClick={() => setPagina(p => Math.max(1, p - 1))}
+                  disabled={paginaSegura === 1}
+                  aria-label="Página anterior"
+                >
+                  ‹
+                </button>
+
+                {generarPaginas().map((p, i) =>
+                  p === '...'
+                    ? <span key={`dots-${i}`} className="ausu-pag-dots">…</span>
+                    : (
+                      <button
+                        key={p}
+                        className={`ausu-pag-btn${paginaSegura === p ? ' ausu-pag-activa' : ''}`}
+                        onClick={() => setPagina(p as number)}
+                      >
+                        {p}
+                      </button>
+                    )
+                )}
+
+                <button
+                  className="ausu-pag-btn"
+                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                  disabled={paginaSegura === totalPaginas}
+                  aria-label="Página siguiente"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Modal Crear ── */}
@@ -304,7 +376,6 @@ export default function AdminUsuarios() {
                   onChange={e => { setFormCrear({...formCrear, matricula_id: e.target.value}); setErrorModal(''); }}
                   placeholder="Ej. 20242TIDSM059 o 059"
                 />
-                {/* Rol detectado en tiempo real */}
                 {formCrear.matricula_id && (
                   <span style={{ fontSize: 12, marginTop: 4, color: rolDetectadoCrear ? '#34d399' : '#f87171' }}>
                     {rolDetectadoCrear

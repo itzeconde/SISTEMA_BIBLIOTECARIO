@@ -528,3 +528,82 @@
   font-size: 13px;
   margin: 8px 0 0;
 }
+/* ── Paginación — añadir al final de AdminUsuarios.css ── */
+
+.ausu-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 4px 4px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ausu-pag-info {
+  font-size: 13px;
+  color: var(--admin-muted);
+  font-family: sans-serif;
+  white-space: nowrap;
+}
+
+.ausu-pag-controles {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ausu-pag-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  background: none;
+  color: var(--admin-text);
+  font-size: 13px;
+  font-family: sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.ausu-pag-btn:hover:not(:disabled) {
+  background: var(--admin-border);
+}
+
+.ausu-pag-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ausu-pag-btn.ausu-pag-activa {
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: default;
+}
+
+.ausu-pag-dots {
+  font-size: 13px;
+  color: var(--admin-muted);
+  padding: 0 4px;
+  user-select: none;
+  line-height: 34px;
+}
+
+/* Responsive paginación */
+@media (max-width: 767px) {
+  .ausu-paginacion {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ausu-pag-btn {
+    min-width: 36px;
+    height: 36px;
+  }
+}
