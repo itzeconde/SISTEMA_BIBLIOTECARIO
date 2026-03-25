@@ -64,6 +64,7 @@ export default function Home() {
   const [libros,         setLibros]         = useState<Libro[]>([]);
   const [categorias,     setCategorias]     = useState<Categoria[]>([]);
   const [cargandoLibros, setCargandoLibros] = useState(true);
+  const [modalPrivacidad, setModalPrivacidad] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("usuario");
@@ -88,13 +89,11 @@ export default function Home() {
     else navigate(ruta);
   };
 
-  // ── Búsqueda recortando espacios al inicio y al final ──
   const handleBuscar = () => {
     const termino = search.trim();
     if (termino) navigate(`/libros?busqueda=${encodeURIComponent(termino)}`);
     else navigate("/libros");
   };
-  // ───────────────────────────────────────────────────────
 
   const categoriasDestacadas = categorias.slice(0, 4);
 
@@ -321,9 +320,65 @@ export default function Home() {
         </div>
         <div className="footer-bottom">
           <span>© 2025 Biblioteca WEB · Todos los derechos reservados</span>
-          <span>Privacidad · Términos de uso · Accesibilidad</span>
+          <div className="footer-bottom-links">
+            <span
+              className="footer-bottom-link"
+              onClick={() => setModalPrivacidad(true)}
+            >
+              Privacidad
+            </span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Términos de uso</span>
+            <span className="footer-bottom-sep">·</span>
+            <span>Accesibilidad</span>
+          </div>
         </div>
       </footer>
+
+      {/* ══ MODAL POLÍTICA DE PRIVACIDAD ══ */}
+      {modalPrivacidad && (
+        <div className="privacidad-backdrop" onClick={() => setModalPrivacidad(false)}>
+          <div className="privacidad-modal" onClick={e => e.stopPropagation()}>
+            <div className="privacidad-modal-header">
+              <h2>Política de Privacidad</h2>
+              <button className="privacidad-modal-close" onClick={() => setModalPrivacidad(false)}>✕</button>
+            </div>
+            <div className="privacidad-modal-body">
+              <h3>1. Responsable del tratamiento de datos</h3>
+              <p>La institución educativa es responsable del tratamiento de los datos personales que los usuarios proporcionan al registrarse en el sistema de Biblioteca WEB.</p>
+
+              <h3>2. Datos que recopilamos</h3>
+              <p>Recopilamos únicamente los datos necesarios para la operación del servicio: nombre completo, apellidos, matrícula o número de trabajador, y correo electrónico. No se solicitan datos sensibles.</p>
+
+              <h3>3. Finalidad del uso de datos</h3>
+              <p>Los datos personales se utilizan exclusivamente para: gestionar el acceso al sistema, administrar préstamos y apartados de libros, enviar notificaciones relacionadas con el servicio (como recordatorios de devolución y recuperación de contraseña).</p>
+
+              <h3>4. Uso del correo electrónico</h3>
+              <p>El correo electrónico registrado se emplea únicamente para comunicaciones del sistema de biblioteca. No será utilizado para fines publicitarios ni compartido con terceros bajo ninguna circunstancia.</p>
+
+              <h3>5. Almacenamiento y seguridad</h3>
+              <p>Los datos se almacenan en servidores institucionales con medidas de seguridad técnicas y administrativas para prevenir accesos no autorizados, pérdida o alteración de la información.</p>
+
+              <h3>6. Derechos del usuario</h3>
+              <p>El usuario tiene derecho a acceder, rectificar o solicitar la eliminación de sus datos personales. Para ejercer estos derechos, deberá acudir directamente al personal de la biblioteca.</p>
+
+              <h3>7. Conservación de datos</h3>
+              <p>Los datos se conservarán mientras el usuario mantenga una cuenta activa en el sistema. Una vez dada de baja la cuenta, los datos podrán eliminarse conforme a las políticas internas de la institución.</p>
+
+              <h3>8. Cambios a esta política</h3>
+              <p>La institución se reserva el derecho de actualizar esta política de privacidad. Cualquier modificación relevante será notificada a los usuarios a través del correo registrado.</p>
+            </div>
+            <div className="privacidad-modal-footer">
+              <button
+                className="privacidad-btn-cerrar"
+                onClick={() => setModalPrivacidad(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

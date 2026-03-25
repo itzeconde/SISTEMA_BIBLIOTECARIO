@@ -107,9 +107,7 @@ export default function AdminLayout() {
             <div className="admin-logo-icon">B</div>
             <span className="admin-logo-text">Biblioteca</span>
           </div>
-          <button className="admin-collapse-btn" onClick={() => setCollapsed(!collapsed)}>
-            {collapsed ? '→' : '←'}
-          </button>
+          {/* El botón de colapso se movió FUERA del aside para evitar overflow visual */}
         </div>
 
         <div className="admin-sidebar-label">PANEL ADMIN</div>
@@ -146,6 +144,15 @@ export default function AdminLayout() {
           </button>
         </div>
       </aside>
+
+      {/* ── Botón colapso FUERA del aside — se posiciona sobre el borde derecho del sidebar ── */}
+      <button
+        className="admin-collapse-btn"
+        onClick={() => setCollapsed(!collapsed)}
+        title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+      >
+        {collapsed ? '→' : '←'}
+      </button>
 
       {/* ── Nav móvil via Portal — se renderiza directo en document.body ── */}
       {createPortal(

@@ -37,7 +37,7 @@
   height: 100vh;
   z-index: 100;
   transition: width 0.25s ease;
-  overflow: hidden;
+  overflow: hidden;        /* clip contents al colapsar */
 }
 
 .admin-layout.collapsed .admin-sidebar {
@@ -78,17 +78,36 @@
   white-space: nowrap;
 }
 
+/* ── Botón colapso — FUERA del aside, pegado al borde derecho ── */
 .admin-collapse-btn {
-  background: none; border: none;
+  position: fixed;
+  top: 21px;
+  /* Se alinea sobre el borde derecho del sidebar */
+  left: calc(var(--admin-sidebar-w) - 11px);
+  z-index: 200;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-sidebar-bg);
   color: var(--admin-muted);
-  cursor: pointer; font-size: 14px;
-  padding: 4px 6px; border-radius: 6px;
-  transition: color 0.2s, background 0.2s;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 0.25s ease, color 0.2s, background 0.2s, border-color 0.2s;
   flex-shrink: 0;
 }
+
+.admin-layout.collapsed .admin-collapse-btn {
+  left: calc(var(--admin-sidebar-w-col) - 11px);
+}
+
 .admin-collapse-btn:hover {
   color: var(--admin-text);
-  background: var(--admin-border);
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
 }
 
 /* Label */
@@ -469,7 +488,9 @@
   .admin-nav-label,
   .admin-nav-dot,
   .admin-user-details,
-  .admin-user-chevron,
+  .admin-user-chevron { display: none; }
+
+  /* Ocultar botón colapso en tablet — sidebar ya está fijo colapsado */
   .admin-collapse-btn { display: none; }
 
   .admin-nav-item   { justify-content: center; padding: 10px; }
@@ -486,8 +507,9 @@
    ════════════════════════════════════════════ */
 @media (max-width: 767px) {
 
-  /* Ocultar sidebar completo en móvil */
-  .admin-sidebar {
+  /* Ocultar sidebar y botón colapso en móvil */
+  .admin-sidebar,
+  .admin-collapse-btn {
     display: none !important;
   }
 
