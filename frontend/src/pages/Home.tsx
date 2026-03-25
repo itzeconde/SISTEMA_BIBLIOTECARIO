@@ -164,7 +164,7 @@ export default function Home() {
           {[
             { num: `${libros.length > 0 ? "500 +" : "—"}`, label: "Títulos" },
             { num: `${categorias.length > 0 ? categorias.length : "—"}`, label: "Categorías" },
-            { num: "14 días", label: "Préstamo" },
+            { num: "3-5-7 días", label: "Préstamo" },
           ].map((s) => (
             <div className="hero-stat-pill" key={s.label}>
               <span className="hero-stat-num">{s.num}</span>
