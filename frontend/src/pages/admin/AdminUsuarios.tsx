@@ -274,7 +274,7 @@ export default function AdminUsuarios() {
                     <td className="td-muted">{u.usuario_email}</td>
                     <td>
                       <span className={`ausu-pill rol-${u.usuario_rol}`}>
-                        {u.usuario_rol === 'alumno' ? '🎓 Alumno' : '👨‍🏫 Docente'}
+                        {u.usuario_rol === 'alumno' ? ' Alumno' : ' Docente'}
                       </span>
                     </td>
                     <td>

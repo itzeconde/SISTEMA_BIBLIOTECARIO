@@ -194,11 +194,31 @@ class CategoriaSerializer(serializers.ModelSerializer):
         model  = Categoria
         fields = ['categoria_id', 'categoria_nombre']
 
+    def validate_categoria_nombre(self, value):
+        value = value.strip()
+        qs = Categoria.objects.filter(categoria_nombre__iexact=value)
+        # En edición, excluir el registro actual para no bloquearse a sí mismo
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Esta categoría ya existe.")
+        return value
+
 
 class EditorialSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Editorial
         fields = ['editorial_id', 'editorial_nombre']
+
+    def validate_editorial_nombre(self, value):
+        value = value.strip()
+        qs = Editorial.objects.filter(editorial_nombre__iexact=value)
+        # En edición, excluir el registro actual para no bloquearse a sí mismo
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Esta editorial ya existe.")
+        return value
 
 
 class LibroSerializer(serializers.ModelSerializer):

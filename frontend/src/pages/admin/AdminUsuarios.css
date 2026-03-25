@@ -635,3 +635,9 @@
     font-size: 12px;
   }
 }
+.ausu-input-readonly {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
