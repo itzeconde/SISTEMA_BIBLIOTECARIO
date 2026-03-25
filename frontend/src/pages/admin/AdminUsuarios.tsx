@@ -311,9 +311,8 @@ export default function AdminUsuarios() {
                   className="ausu-pag-btn"
                   onClick={() => setPagina(p => Math.max(1, p - 1))}
                   disabled={paginaSegura === 1}
-                  aria-label="Página anterior"
                 >
-                  ‹
+                  ‹ Anterior
                 </button>
 
                 {generarPaginas().map((p, i) =>
@@ -334,9 +333,8 @@ export default function AdminUsuarios() {
                   className="ausu-pag-btn"
                   onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
                   disabled={paginaSegura === totalPaginas}
-                  aria-label="Página siguiente"
                 >
-                  ›
+                  Siguiente ›
                 </button>
               </div>
             </div>

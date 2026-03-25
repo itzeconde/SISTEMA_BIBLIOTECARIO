@@ -528,57 +528,83 @@
   font-size: 13px;
   margin: 8px 0 0;
 }
-/* ── Paginación — añadir al final de AdminUsuarios.css ── */
-
+ 
 .ausu-paginacion {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 4px 4px;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-top: 1px solid var(--admin-border);
+  font-family: sans-serif;
   flex-wrap: wrap;
-  gap: 12px;
 }
-
+ 
 .ausu-pag-info {
+  width: 100%;
+  text-align: center;
   font-size: 13px;
   color: var(--admin-muted);
   font-family: sans-serif;
-  white-space: nowrap;
+  margin-bottom: 6px;
 }
-
+ 
 .ausu-pag-controles {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
-
-.ausu-pag-btn {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 8px;
-  border-radius: 8px;
+ 
+/* Botones anterior / siguiente */
+.ausu-pag-btn:not(.ausu-pag-activa) {
+  padding: 7px 12px;
+  border-radius: 7px;
   border: 1px solid var(--admin-border);
   background: none;
-  color: var(--admin-text);
+  color: var(--admin-muted);
   font-size: 13px;
-  font-family: sans-serif;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+  font-family: sans-serif;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  min-width: unset;
+  height: unset;
 }
-
-.ausu-pag-btn:hover:not(:disabled) {
+.ausu-pag-btn:not(.ausu-pag-activa):hover:not(:disabled) {
   background: var(--admin-border);
+  color: var(--admin-text);
 }
-
 .ausu-pag-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
-
+ 
+/* Botones de número de página */
+.ausu-pag-btn.ausu-pag-activa,
+.ausu-pag-controles .ausu-pag-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid var(--admin-border);
+  background: none;
+  color: var(--admin-muted);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: sans-serif;
+  transition: background 0.15s, color 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ausu-pag-controles .ausu-pag-btn:hover:not(:disabled):not(.ausu-pag-activa) {
+  background: var(--admin-border);
+  color: var(--admin-text);
+}
+ 
+/* Página activa */
 .ausu-pag-btn.ausu-pag-activa {
   background: var(--admin-accent);
   border-color: var(--admin-accent);
@@ -586,24 +612,26 @@
   font-weight: 700;
   cursor: default;
 }
-
+ 
+/* Puntos suspensivos */
 .ausu-pag-dots {
-  font-size: 13px;
   color: var(--admin-muted);
+  font-size: 13px;
   padding: 0 4px;
   user-select: none;
   line-height: 34px;
 }
-
-/* Responsive paginación */
+ 
+/* Responsive */
 @media (max-width: 767px) {
-  .ausu-paginacion {
-    flex-direction: column;
-    align-items: center;
+  .ausu-pag-controles .ausu-pag-btn,
+  .ausu-pag-btn.ausu-pag-activa {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
   }
-
-  .ausu-pag-btn {
-    min-width: 36px;
-    height: 36px;
+  .ausu-pag-btn:not(.ausu-pag-activa) {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
