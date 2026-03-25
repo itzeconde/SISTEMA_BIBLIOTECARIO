@@ -97,7 +97,6 @@ export default function AdminUsuarios() {
 
   useEffect(() => { cargar(); }, []);
 
-  // Resetear a página 1 cuando cambia la búsqueda
   useEffect(() => { setPagina(1); }, [busqueda]);
 
   const mostrar = (tipo: 'ok' | 'err', texto: string) => {
@@ -160,8 +159,10 @@ export default function AdminUsuarios() {
         if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
         mostrar('ok', 'Usuario creado correctamente');
       } else if (modal?.tipo === 'editar') {
+        // ✅ Solo enviamos los campos editables; matricula_id queda fuera
+        const { matricula_id, ...camposEditables } = formEditar;
         const r = await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, {
-          method: 'PUT', headers, body: JSON.stringify(formEditar),
+          method: 'PUT', headers, body: JSON.stringify(camposEditables),
         });
         if (!r.ok) { const d = await r.json(); throw new Error(Object.values(d)[0] as string); }
         mostrar('ok', 'Usuario actualizado correctamente');
@@ -180,7 +181,6 @@ export default function AdminUsuarios() {
       await fetch(`${API}/admin/usuarios/${modal.usuario.usuario_id}/`, { method: 'DELETE', headers });
       mostrar('ok', 'Usuario eliminado correctamente');
       setModal(null);
-      // Si la página actual queda vacía tras eliminar, retroceder una página
       const nuevoTotal = usuarios.length - 1;
       const maxPagina = Math.max(1, Math.ceil(nuevoTotal / POR_PAGINA));
       if (pagina > maxPagina) setPagina(maxPagina);
@@ -200,7 +200,6 @@ export default function AdminUsuarios() {
   const inicio       = (paginaSegura - 1) * POR_PAGINA;
   const paginados    = filtrados.slice(inicio, inicio + POR_PAGINA);
 
-  // Números de página visibles (máximo 5, centrados alrededor de la página actual)
   const generarPaginas = (): (number | '...')[] => {
     if (totalPaginas <= 7) return Array.from({ length: totalPaginas }, (_, i) => i + 1);
     const pages: (number | '...')[] = [1];
@@ -299,7 +298,6 @@ export default function AdminUsuarios() {
             </table>
           </div>
 
-          {/* ── Paginación ── */}
           {totalPaginas > 1 && (
             <div className="ausu-paginacion">
               <span className="ausu-pag-info">
@@ -413,7 +411,7 @@ export default function AdminUsuarios() {
             <button className="ausu-modal-x" onClick={() => setModal(null)}>✕</button>
             <h2 className="ausu-modal-title">Editar usuario</h2>
             <p className="ausu-modal-nota">
-              🔒 La contraseña no puede modificarse desde aquí. El rol se actualiza automáticamente si cambias la matrícula.
+              🔒 La contraseña no puede modificarse desde aquí. La matrícula es fija y no puede editarse.
             </p>
             <div className="ausu-form-grid">
               <div className="ausu-form-group">
@@ -436,9 +434,13 @@ export default function AdminUsuarios() {
               </div>
               <div className="ausu-form-group">
                 <label>Matrícula / N° Trabajador</label>
-                <input value={formEditar.matricula_id}
-                  onChange={e => { setFormEditar({...formEditar, matricula_id: e.target.value}); setErrorModal(''); }}
-                  placeholder="Ej. 20242TIDSM059 o 059" />
+                {/* ✅ readOnly: visible pero no editable. El valor NO se envía al PUT. */}
+                <input
+                  value={formEditar.matricula_id}
+                  readOnly
+                  className="ausu-input-readonly"
+                  title="La matrícula no puede modificarse"
+                />
               </div>
               <div className="ausu-form-group ausu-span2">
                 <label>Correo electrónico</label>

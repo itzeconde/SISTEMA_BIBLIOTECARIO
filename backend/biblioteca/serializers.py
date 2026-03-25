@@ -38,7 +38,6 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     def validate_matricula_id(self, value):
         value = value.strip()
-        # No permitir que nadie se registre como AdminBiblioteca
         if value == ADMIN_MATRICULA:
             raise serializers.ValidationError("Identificador no permitido.")
         try:
@@ -59,7 +58,6 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data['usuario_password'] = make_password(validated_data['usuario_password'])
-        # Rol se detecta automáticamente, nunca viene del frontend
         validated_data['usuario_rol'] = detectar_rol(validated_data['matricula_id'])
         return super().create(validated_data)
 
@@ -112,10 +110,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
 class UsuarioAdminSerializer(serializers.ModelSerializer):
     """
     Usado por el admin para crear/editar usuarios.
-    - El ROL se detecta automáticamente por el formato de la matrícula/número de trabajador.
-    - El admin NO elige el rol manualmente.
-    - El admin NO puede ver ni cambiar contraseñas de usuarios existentes.
-    - La contraseña solo se establece al CREAR.
+    - El ROL se detecta automáticamente por el formato de la matrícula.
+    - La MATRÍCULA no puede modificarse una vez creado el usuario.
+    - La CONTRASEÑA solo se establece al crear; nunca se edita desde aquí.
     """
     esta_bloqueado         = serializers.SerializerMethodField()
     dias_bloqueo_restantes = serializers.SerializerMethodField()
@@ -129,8 +126,9 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             'usuario_bloqueado_hasta', 'esta_bloqueado', 'dias_bloqueo_restantes',
             'usuario_password',
         ]
-        # usuario_rol es solo lectura: se muestra pero nunca lo elige el admin
-        read_only_fields = ['usuario_rol']
+        # ✅ matricula_id y usuario_rol: solo lectura en edición
+        # DRF los incluye en la respuesta (GET) pero los ignora en PUT/PATCH
+        read_only_fields = ['usuario_rol', 'matricula_id']
 
     def solo_letras(self, valor):
         return bool(re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$', valor.strip()))
@@ -150,16 +148,15 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El apellido materno solo puede contener letras y espacios.")
         return value.strip() if value else value
 
+    # ✅ validate_matricula_id solo aplica al CREAR (en edición el campo es read_only y nunca llega aquí)
     def validate_matricula_id(self, value):
         value = value.strip()
-        # No permitir crear otro AdminBiblioteca
         if value == ADMIN_MATRICULA:
             raise serializers.ValidationError("Ese identificador está reservado.")
         try:
             detectar_rol(value)
         except ValueError as e:
             raise serializers.ValidationError(str(e))
-        # Mayúsculas para matrícula de alumno, dígitos puros para docente
         return value.upper() if not value.isdigit() else value
 
     def get_esta_bloqueado(self, obj):
@@ -180,12 +177,11 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Nunca actualizar contraseña ni rol manualmente
+        # ✅ Estos campos nunca deben modificarse en edición
+        # (matricula_id ya es read_only, pero por seguridad también se hace pop)
         validated_data.pop('usuario_password', None)
         validated_data.pop('usuario_rol', None)
-        # Si cambia la matrícula, recalcular el rol
-        if 'matricula_id' in validated_data:
-            validated_data['usuario_rol'] = detectar_rol(validated_data['matricula_id'])
+        validated_data.pop('matricula_id', None)
         return super().update(instance, validated_data)
 
 
